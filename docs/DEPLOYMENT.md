@@ -67,9 +67,10 @@ pm2 startup
 
 1. חבר את המאגר ל-Render
 2. הגדר Web Service עם:
-   - Build Command: `npm run build`
+   - Build Command: `npm run build` (מתקין אוטומטית תלויות ב-root, frontend ו-backend)
    - Start Command: `npm start`
    - Environment Variables: הגדר את כל משתני הסביבה
+3. הקובץ `render.yaml` כבר מוגדר לפריסה כשירות יחיד מהשורש
 
 ### Railway
 
