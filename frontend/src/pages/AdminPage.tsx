@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, X, LogOut, Shield, CheckCircle, Circle } from 'lucide-react';
+import { Plus, Trash2, Edit, Save, X, LogOut, Shield, CheckCircle, Circle } from 'lucide-react';
 import { adminService, Exam, Question } from '../services/admin';
 
 interface Question {
