@@ -51,7 +51,10 @@ const AuthPage = () => {
         navigate('/register', { state: { phone } });
       } else if (response.token && response.user) {
         login(response.token, response.user);
-        navigate('/exam');
+        // Wait a moment for the auth state to update before navigating
+        setTimeout(() => {
+          navigate('/exam');
+        }, 100);
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'קוד שגוי או פג תוקף');
