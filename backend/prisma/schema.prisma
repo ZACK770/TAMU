@@ -1,0 +1,55 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id          String        @id @default(uuid())
+  phone       String        @unique
+  fullName    String?
+  createdAt   DateTime      @default(now())
+  examSessions ExamSession[]
+}
+
+model Exam {
+  id          String        @id @default(uuid())
+  title       String
+  isRandom    Boolean       @default(false)
+  questions   Question[]
+  tokens      ExamToken[]
+}
+
+model Question {
+  id          String        @id @default(uuid())
+  examId      String
+  exam        Exam          @relation(fields: [examId], references: [id])
+  text        String
+  answers     String[]
+  correctIdx  Int
+}
+
+model ExamToken {
+  id          String        @id @default(uuid())
+  tokenCode   String        @unique
+  examId      String
+  exam        Exam          @relation(fields: [examId], references: [id])
+  isUsed      Boolean       @default(false)
+  usedById    String?
+  usedAt      DateTime?
+}
+
+model ExamSession {
+  id          String        @id @default(uuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  examId      String
+  score       Int?
+  answers     Json
+  isCompleted Boolean       @default(false)
+  startedAt   DateTime      @default(now())
+  completedAt DateTime?
+}
