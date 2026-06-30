@@ -12,6 +12,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { apiLimiter } from './middleware/rateLimit.js';
 import authRoutes from './routes/auth.js';
 import examRoutes from './routes/exams.js';
+import adminRoutes from './routes/admin.js';
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ app.use('/api', apiLimiter);
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/exams', examRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
