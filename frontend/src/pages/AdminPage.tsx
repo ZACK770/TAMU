@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Save, X, LogOut, Shield, CheckCircle, Circle } from 'lucide-react';
+import { Plus, Trash2, X, LogOut, Shield, CheckCircle, Circle } from 'lucide-react';
 
 interface Question {
   id: string;

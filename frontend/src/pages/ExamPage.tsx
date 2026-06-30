@@ -7,7 +7,7 @@ import { LogOut, Key, Trophy, CheckCircle, Send, Loader2 } from 'lucide-react';
 const ExamPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { logout } = useAuth();
   const [token, setToken] = useState(searchParams.get('token') || '');
   const [manualToken, setManualToken] = useState('');
   const [sessionId, setSessionId] = useState('');

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/auth';
 import { useAuth } from '../hooks/useAuth';
-import { User, ArrowLeft, ArrowRight, RefreshCw, CheckCircle2, Phone } from 'lucide-react';
+import { User, ArrowLeft, RefreshCw, CheckCircle2, Phone } from 'lucide-react';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
