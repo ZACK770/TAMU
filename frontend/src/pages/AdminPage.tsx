@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, X, LogOut, Shield, CheckCircle, Circle } from 'lucide-react';
+import { adminService, Exam, Question } from '../services/admin';
 
 interface Question {
   id: string;
@@ -28,19 +29,35 @@ const AdminPage = () => {
     correctIdx: 0,
   });
 
-  const handleCreateExam = () => {
+  // Load exams from backend on mount
+  useEffect(() => {
+    const loadExams = async () => {
+      try {
+        const data = await adminService.getAllExams();
+        setExams(data);
+      } catch (error) {
+        console.error('Failed to load exams:', error);
+      }
+    };
+    loadExams();
+  }, []);
+
+  const handleCreateExam = async () => {
     if (!newExamTitle.trim()) return;
     
-    const newExam: Exam = {
-      id: Date.now().toString(),
-      title: newExamTitle,
-      isRandom: false,
-      questions: [],
-    };
-    
-    setExams([...exams, newExam]);
-    setNewExamTitle('');
-    setShowCreateModal(false);
+    try {
+      const newExam = await adminService.createExam({
+        title: newExamTitle,
+        description: '',
+        questions: [],
+      });
+      setExams([...exams, newExam]);
+      setNewExamTitle('');
+      setShowCreateModal(false);
+    } catch (error) {
+      console.error('Failed to create exam:', error);
+      alert('נכשל ביצירת מבחן');
+    }
   };
 
   const handleAddQuestion = () => {
@@ -79,10 +96,16 @@ const AdminPage = () => {
     setSelectedExam(updatedExam);
   };
 
-  const handleDeleteExam = (examId: string) => {
-    setExams(exams.filter(e => e.id !== examId));
-    if (selectedExam?.id === examId) {
-      setSelectedExam(null);
+  const handleDeleteExam = async (examId: string) => {
+    try {
+      await adminService.deleteExam(examId);
+      setExams(exams.filter(e => e.id !== examId));
+      if (selectedExam?.id === examId) {
+        setSelectedExam(null);
+      }
+    } catch (error) {
+      console.error('Failed to delete exam:', error);
+      alert('נכשל במחיקת מבחן');
     }
   };
 
