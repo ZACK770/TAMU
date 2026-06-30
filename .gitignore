@@ -1,12 +1,7 @@
 node_modules/
 .env
-logs/
+.env.local
 *.log
-backend/dist/
-frontend/dist/
-.vscode/
-.idea/
-.DS_Store
-*.swp
-*.swo
-*~
+logs/
+dist/
+build/

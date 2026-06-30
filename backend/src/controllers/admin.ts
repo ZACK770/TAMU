@@ -36,7 +36,7 @@ export const createExam = async (req: Request, res: Response) => {
 
 export const createToken = async (req: Request, res: Response) => {
   try {
-    const { examId, maxAttempts = 1 } = req.body;
+    const { examId } = req.body;
 
     if (!examId) {
       return res.status(400).json({ error: 'examId is required' });
@@ -57,8 +57,6 @@ export const createToken = async (req: Request, res: Response) => {
       data: {
         tokenCode,
         examId,
-        maxAttempts,
-        isUsed: false,
       },
     });
 

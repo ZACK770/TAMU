@@ -1,8 +1,9 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../utils/prisma.js';
 import logger from '../utils/logger.js';
 
-export const verifyToken = async (req: Request, res: Response) => {
+export const verifyToken = async (req: AuthRequest, res: Response) => {
   try {
     const { token } = req.body;
     const userId = req.user!.id;
@@ -46,7 +47,7 @@ export const verifyToken = async (req: Request, res: Response) => {
 
     logger.info('Exam session created', { sessionId: session.id, userId, examId: examToken.examId });
 
-    res.json({
+    return res.json({
       sessionId: session.id,
       exam: {
         id: exam.id,
@@ -56,11 +57,11 @@ export const verifyToken = async (req: Request, res: Response) => {
     });
   } catch (error) {
     logger.error('Error verifying token', { error });
-    res.status(500).json({ error: 'Failed to verify token' });
+    return res.status(500).json({ error: 'Failed to verify token' });
   }
 };
 
-export const getNextQuestion = async (req: Request, res: Response) => {
+export const getNextQuestion = async (req: AuthRequest, res: Response) => {
   try {
     const { sessionId } = req.params;
     const userId = req.user!.id;
@@ -111,7 +112,7 @@ export const getNextQuestion = async (req: Request, res: Response) => {
       return res.json({ completed: true });
     }
 
-    res.json({
+    return res.json({
       question: {
         id: nextQuestion.id,
         text: nextQuestion.text,
@@ -120,11 +121,11 @@ export const getNextQuestion = async (req: Request, res: Response) => {
     });
   } catch (error) {
     logger.error('Error getting next question', { error });
-    res.status(500).json({ error: 'Failed to get next question' });
+    return res.status(500).json({ error: 'Failed to get next question' });
   }
 };
 
-export const submitAnswer = async (req: Request, res: Response) => {
+export const submitAnswer = async (req: AuthRequest, res: Response) => {
   try {
     const { sessionId } = req.params;
     const { questionId, answerIndex } = req.body;
@@ -173,16 +174,16 @@ export const submitAnswer = async (req: Request, res: Response) => {
 
     logger.info('Answer submitted', { sessionId, questionId, isCorrect, userId });
 
-    res.json({
+    return res.json({
       correct: isCorrect,
     });
   } catch (error) {
     logger.error('Error submitting answer', { error });
-    res.status(500).json({ error: 'Failed to submit answer' });
+    return res.status(500).json({ error: 'Failed to submit answer' });
   }
 };
 
-export const completeExam = async (req: Request, res: Response) => {
+export const completeExam = async (req: AuthRequest, res: Response) => {
   try {
     const { sessionId } = req.params;
     const userId = req.user!.id;
@@ -247,13 +248,13 @@ export const completeExam = async (req: Request, res: Response) => {
 
     logger.info('Exam completed', { sessionId, score, userId });
 
-    res.json({
+    return res.json({
       score,
       correctCount,
       totalQuestions: exam.questions.length,
     });
   } catch (error) {
     logger.error('Error completing exam', { error });
-    res.status(500).json({ error: 'Failed to complete exam' });
+    return res.status(500).json({ error: 'Failed to complete exam' });
   }
 };

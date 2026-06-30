@@ -32,7 +32,7 @@ export const adminService = {
   },
 
   // Tokens
-  createToken: async (data: { examId: string; maxAttempts?: number }) => {
+  createToken: async (data: { examId: string }) => {
     const response = await api.post('/admin/tokens', data);
     return response.data;
   },
