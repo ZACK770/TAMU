@@ -21,20 +21,25 @@ const ExamPage = () => {
 
   useEffect(() => {
     console.log('[ExamPage] useEffect running');
-    console.log('[ExamPage] isAuthenticated:', isAuthenticated);
-    console.log('[ExamPage] user:', user);
     
-    if (!isAuthenticated) {
-      console.log('[ExamPage] User not authenticated, redirecting to /auth');
+    // Check localStorage directly instead of relying on useAuth state
+    const tokenFromStorage = localStorage.getItem('authToken');
+    const userFromStorage = localStorage.getItem('user');
+    
+    console.log('[ExamPage] Token from localStorage:', tokenFromStorage);
+    console.log('[ExamPage] User from localStorage:', userFromStorage);
+    
+    if (!tokenFromStorage || !userFromStorage) {
+      console.log('[ExamPage] No auth in localStorage, redirecting to /auth');
       navigate('/auth');
       return;
     }
 
-    console.log('[ExamPage] User is authenticated, proceeding');
+    console.log('[ExamPage] User is authenticated (from localStorage), proceeding');
     if (token) {
       handleVerifyToken(token);
     }
-  }, [isAuthenticated]);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
