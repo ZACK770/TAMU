@@ -289,7 +289,7 @@ const AdminPage = () => {
                             <div className="flex justify-between items-start mb-2">
                               <span className="text-sm text-gray-500">שאלה {idx + 1}</span>
                               <button
-                                onClick={() => handleDeleteQuestion(question.id)}
+                                onClick={() => question.id && handleDeleteQuestion(question.id)}
                                 className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-colors"
                               >
                                 <Trash2 className="w-4 h-4" />
