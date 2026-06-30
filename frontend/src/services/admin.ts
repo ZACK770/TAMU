@@ -2,26 +2,16 @@ import api from './api';
 
 export interface Question {
   id?: string;
-  question: string;
-  options: string[];
-  correctAnswer: number;
-  points?: number;
+  text: string;
+  answers: string[];
+  correctIdx: number;
 }
 
 export interface Exam {
   id: string;
   title: string;
-  description: string;
+  isRandom: boolean;
   questions: Question[];
-  tokens?: ExamToken[];
-}
-
-export interface ExamToken {
-  id: string;
-  token: string;
-  examId: string;
-  maxAttempts: number;
-  isActive: boolean;
 }
 
 export const adminService = {

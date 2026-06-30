@@ -16,10 +16,9 @@ export const createExam = async (req: Request, res: Response) => {
         description: description || '',
         questions: {
           create: questions.map((q: any) => ({
-            question: q.question,
-            options: q.options,
-            correctAnswer: q.correctAnswer,
-            points: q.points || 1,
+            text: q.text,
+            answers: q.answers,
+            correctIdx: q.correctIdx,
           })),
         },
       },
