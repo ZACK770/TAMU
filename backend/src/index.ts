@@ -20,7 +20,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8081;
 
 // Security middleware
 app.use(helmet({
@@ -50,7 +50,7 @@ app.use('/api/exams', examRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
@@ -59,7 +59,7 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../../frontend/dist')));
   
   // SPA fallback (only in production)
-  app.get('*', (req, res) => {
+  app.get('*', (_req, res) => {
     res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
   });
 }

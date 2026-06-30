@@ -39,13 +39,13 @@ export const sendCode = async (req: Request, res: Response) => {
 
     logger.info('OTP code sent', { phone });
 
-    res.json({ 
+    return res.json({ 
       message: 'Code sent successfully',
       expiresIn: 600 // 10 minutes in seconds
     });
   } catch (error) {
     logger.error('Error sending code', { error });
-    res.status(500).json({ error: 'Failed to send code' });
+    return res.status(500).json({ error: 'Failed to send code' });
   }
 };
 
@@ -100,7 +100,7 @@ export const verifyCode = async (req: Request, res: Response) => {
     otpCodes.delete(phone);
     logger.info('User authenticated successfully', { userId: user.id, phone });
 
-    res.json({
+    return res.json({
       token,
       user: {
         id: user.id,
@@ -110,7 +110,7 @@ export const verifyCode = async (req: Request, res: Response) => {
     });
   } catch (error) {
     logger.error('Error verifying code', { error });
-    res.status(500).json({ error: 'Failed to verify code' });
+    return res.status(500).json({ error: 'Failed to verify code' });
   }
 };
 
@@ -148,7 +148,7 @@ export const register = async (req: Request, res: Response) => {
 
     logger.info('New user registered', { userId: user.id, phone });
 
-    res.json({
+    return res.json({
       token,
       user: {
         id: user.id,
@@ -158,6 +158,6 @@ export const register = async (req: Request, res: Response) => {
     });
   } catch (error) {
     logger.error('Error registering user', { error });
-    res.status(500).json({ error: 'Failed to register user' });
+    return res.status(500).json({ error: 'Failed to register user' });
   }
 };

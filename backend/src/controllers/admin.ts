@@ -4,7 +4,7 @@ import logger from '../utils/logger.js';
 
 export const createExam = async (req: Request, res: Response) => {
   try {
-    const { title, description, questions } = req.body;
+    const { title, questions } = req.body;
 
     if (!title || !questions || !Array.isArray(questions)) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -13,7 +13,6 @@ export const createExam = async (req: Request, res: Response) => {
     const exam = await prisma.exam.create({
       data: {
         title,
-        description: description || '',
         questions: {
           create: questions.map((q: any) => ({
             text: q.text,
@@ -28,10 +27,10 @@ export const createExam = async (req: Request, res: Response) => {
     });
 
     logger.info('Exam created successfully', { examId: exam.id, title });
-    res.json(exam);
+    return res.json(exam);
   } catch (error: any) {
     logger.error('Error creating exam', { error: error.message });
-    res.status(500).json({ error: 'Failed to create exam' });
+    return res.status(500).json({ error: 'Failed to create exam' });
   }
 };
 
@@ -52,26 +51,26 @@ export const createToken = async (req: Request, res: Response) => {
     }
 
     // Generate a random 6-digit token
-    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    const tokenCode = Math.floor(100000 + Math.random() * 900000).toString();
 
     const examToken = await prisma.examToken.create({
       data: {
-        token,
+        tokenCode,
         examId,
         maxAttempts,
-        isActive: true,
+        isUsed: false,
       },
     });
 
-    logger.info('Token created successfully', { tokenId: examToken.id, token });
-    res.json(examToken);
+    logger.info('Token created successfully', { tokenId: examToken.id, tokenCode });
+    return res.json(examToken);
   } catch (error: any) {
     logger.error('Error creating token', { error: error.message });
-    res.status(500).json({ error: 'Failed to create token' });
+    return res.status(500).json({ error: 'Failed to create token' });
   }
 };
 
-export const getAllExams = async (req: Request, res: Response) => {
+export const getAllExams = async (_req: Request, res: Response) => {
   try {
     const exams = await prisma.exam.findMany({
       include: {
@@ -80,10 +79,10 @@ export const getAllExams = async (req: Request, res: Response) => {
       },
     });
 
-    res.json(exams);
+    return res.json(exams);
   } catch (error: any) {
     logger.error('Error fetching exams', { error: error.message });
-    res.status(500).json({ error: 'Failed to fetch exams' });
+    return res.status(500).json({ error: 'Failed to fetch exams' });
   }
 };
 
@@ -96,9 +95,9 @@ export const deleteExam = async (req: Request, res: Response) => {
     });
 
     logger.info('Exam deleted successfully', { examId: id });
-    res.json({ message: 'Exam deleted successfully' });
+    return res.json({ message: 'Exam deleted successfully' });
   } catch (error: any) {
     logger.error('Error deleting exam', { error: error.message });
-    res.status(500).json({ error: 'Failed to delete exam' });
+    return res.status(500).json({ error: 'Failed to delete exam' });
   }
 };

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { verifyToken, getNextQuestion, submitAnswer, completeExam } from '../controllers/exams.js';
-import { authenticateToken, AuthRequest } from '../middleware/auth.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = Router();
 

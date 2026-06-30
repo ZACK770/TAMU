@@ -25,7 +25,7 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
     req.user = decoded;
     
     logger.info('User authenticated', { userId: decoded.id, path: req.path });
-    next();
+    return next();
   } catch (error) {
     logger.warn('Authentication failed: Invalid token', { path: req.path });
     return res.status(403).json({ error: 'Invalid or expired token' });

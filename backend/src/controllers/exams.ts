@@ -1,8 +1,8 @@
-import { Response, AuthRequest } from '../middleware/auth.js';
+import { Request, Response } from 'express';
 import prisma from '../utils/prisma.js';
 import logger from '../utils/logger.js';
 
-export const verifyToken = async (req: AuthRequest, res: Response) => {
+export const verifyToken = async (req: Request, res: Response) => {
   try {
     const { token } = req.body;
     const userId = req.user!.id;
@@ -14,7 +14,6 @@ export const verifyToken = async (req: AuthRequest, res: Response) => {
     // Find the exam token
     const examToken = await prisma.examToken.findUnique({
       where: { tokenCode: token },
-      include: { exam: true },
     });
 
     if (!examToken) {
@@ -25,6 +24,15 @@ export const verifyToken = async (req: AuthRequest, res: Response) => {
     if (examToken.isUsed) {
       logger.warn('Token already used', { userId, token });
       return res.status(400).json({ error: 'Token already used' });
+    }
+
+    // Get exam details
+    const exam = await prisma.exam.findUnique({
+      where: { id: examToken.examId },
+    });
+
+    if (!exam) {
+      return res.status(404).json({ error: 'Exam not found' });
     }
 
     // Create new exam session
@@ -41,9 +49,9 @@ export const verifyToken = async (req: AuthRequest, res: Response) => {
     res.json({
       sessionId: session.id,
       exam: {
-        id: examToken.exam.id,
-        title: examToken.exam.title,
-        isRandom: examToken.exam.isRandom,
+        id: exam.id,
+        title: exam.title,
+        isRandom: exam.isRandom,
       },
     });
   } catch (error) {
@@ -52,7 +60,7 @@ export const verifyToken = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getNextQuestion = async (req: AuthRequest, res: Response) => {
+export const getNextQuestion = async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
     const userId = req.user!.id;
@@ -60,7 +68,6 @@ export const getNextQuestion = async (req: AuthRequest, res: Response) => {
     // Get session
     const session = await prisma.examSession.findUnique({
       where: { id: sessionId },
-      include: { exam: { include: { questions: true } } },
     });
 
     if (!session) {
@@ -75,20 +82,29 @@ export const getNextQuestion = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Exam already completed' });
     }
 
+    // Get exam with questions
+    const exam = await prisma.exam.findUnique({
+      where: { id: session.examId },
+      include: { questions: true },
+    });
+
+    if (!exam) {
+      return res.status(404).json({ error: 'Exam not found' });
+    }
+
     // Get answered question IDs
     const answers = session.answers as Record<string, number>;
     const answeredQuestionIds = Object.keys(answers);
 
     // Get next question
-    let questions = session.exam.questions;
+    let questions = exam.questions;
     
-    if (session.exam.isRandom) {
-      // Shuffle questions based on session ID for consistency
-      const seed = session.id.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+    if (exam.isRandom) {
+      // Shuffle questions
       questions = [...questions].sort(() => Math.random() - 0.5);
     }
 
-    const nextQuestion = questions.find(q => !answeredQuestionIds.includes(q.id));
+    const nextQuestion = questions.find((q: any) => !answeredQuestionIds.includes(q.id));
 
     if (!nextQuestion) {
       // No more questions
@@ -108,7 +124,7 @@ export const getNextQuestion = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const submitAnswer = async (req: AuthRequest, res: Response) => {
+export const submitAnswer = async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
     const { questionId, answerIndex } = req.body;
@@ -166,7 +182,7 @@ export const submitAnswer = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const completeExam = async (req: AuthRequest, res: Response) => {
+export const completeExam = async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
     const userId = req.user!.id;
@@ -174,7 +190,6 @@ export const completeExam = async (req: AuthRequest, res: Response) => {
     // Get session
     const session = await prisma.examSession.findUnique({
       where: { id: sessionId },
-      include: { exam: { include: { questions: true } } },
     });
 
     if (!session) {
@@ -189,17 +204,27 @@ export const completeExam = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Exam already completed' });
     }
 
+    // Get exam with questions
+    const exam = await prisma.exam.findUnique({
+      where: { id: session.examId },
+      include: { questions: true },
+    });
+
+    if (!exam) {
+      return res.status(404).json({ error: 'Exam not found' });
+    }
+
     // Calculate score
     const answers = session.answers as Record<string, number>;
     let correctCount = 0;
 
-    for (const question of session.exam.questions) {
+    for (const question of exam.questions) {
       if (answers[question.id] === question.correctIdx) {
         correctCount++;
       }
     }
 
-    const score = Math.round((correctCount / session.exam.questions.length) * 100);
+    const score = Math.round((correctCount / exam.questions.length) * 100);
 
     // Update session
     await prisma.examSession.update({
@@ -225,7 +250,7 @@ export const completeExam = async (req: AuthRequest, res: Response) => {
     res.json({
       score,
       correctCount,
-      totalQuestions: session.exam.questions.length,
+      totalQuestions: exam.questions.length,
     });
   } catch (error) {
     logger.error('Error completing exam', { error });
