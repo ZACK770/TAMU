@@ -20,11 +20,17 @@ const ExamPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    console.log('[ExamPage] useEffect running');
+    console.log('[ExamPage] isAuthenticated:', isAuthenticated);
+    console.log('[ExamPage] user:', user);
+    
     if (!isAuthenticated) {
+      console.log('[ExamPage] User not authenticated, redirecting to /auth');
       navigate('/auth');
       return;
     }
 
+    console.log('[ExamPage] User is authenticated, proceeding');
     if (token) {
       handleVerifyToken(token);
     }

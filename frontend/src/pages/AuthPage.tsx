@@ -44,22 +44,42 @@ const AuthPage = () => {
     setLoading(true);
     setError('');
 
+    console.log('[AuthPage] Starting code verification', { phone, code });
+
     try {
       const response = await authService.verifyCode(phone, code);
       
+      console.log('[AuthPage] Verification response:', response);
+      
       if (response.needsRegistration) {
+        console.log('[AuthPage] User needs registration, navigating to /register');
         navigate('/register', { state: { phone } });
       } else if (response.token && response.user) {
+        console.log('[AuthPage] User authenticated, calling login()');
+        console.log('[AuthPage] Token:', response.token);
+        console.log('[AuthPage] User:', response.user);
+        
         login(response.token, response.user);
-        // Wait a moment for the auth state to update before navigating
+        
+        console.log('[AuthPage] After login(), checking localStorage');
+        const storedAuth = authService.getAuth();
+        console.log('[AuthPage] Stored auth:', storedAuth);
+        
+        console.log('[AuthPage] Navigating to /exam in 100ms');
         setTimeout(() => {
+          console.log('[AuthPage] Executing navigation to /exam');
           navigate('/exam');
         }, 100);
+      } else {
+        console.log('[AuthPage] Unexpected response structure:', response);
+        setError('תגובה לא צפויה מהשרת');
       }
     } catch (err: any) {
+      console.error('[AuthPage] Verification error:', err);
       setError(err.response?.data?.error || 'קוד שגוי או פג תוקף');
     } finally {
       setLoading(false);
+      console.log('[AuthPage] Verification process completed');
     }
   };
 
