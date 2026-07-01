@@ -60,4 +60,37 @@ export const adminService = {
     const response = await api.post('/api/admin/tokens', data);
     return response.data;
   },
+
+  createBulkTokens: async (data: { examId: string; count: number }): Promise<ExamToken[]> => {
+    const response = await api.post('/api/admin/tokens/bulk', data);
+    return response.data;
+  },
+
+  downloadTokenQR: async (tokenId: string): Promise<void> => {
+    const response = await api.get(`/api/admin/tokens/${tokenId}/qr`, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `token-qr-${tokenId}.png`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
+  downloadAllQRCodes: async (examId: string, examTitle: string): Promise<void> => {
+    const response = await api.get(`/api/admin/exams/${examId}/qrs`, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `qrcodes-${examTitle.replace(/[^a-z0-9]/gi, '-')}.zip`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };

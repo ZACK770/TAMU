@@ -14,6 +14,7 @@ import { apiLimiter } from './middleware/rateLimit.js';
 import authRoutes from './routes/auth.js';
 import examRoutes from './routes/exams.js';
 import adminRoutes from './routes/admin.js';
+import materialRoutes from './routes/materials.js';
 
 dotenv.config();
 
@@ -21,7 +22,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 8081;
+const PORT = process.env.PORT || 9000;
 const frontendDistPath = path.join(__dirname, '../../frontend/dist');
 const frontendIndexPath = path.join(frontendDistPath, 'index.html');
 
@@ -55,6 +56,7 @@ app.use('/api', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/materials', materialRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

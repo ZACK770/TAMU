@@ -1,8 +1,10 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, X, LogOut, Shield, CheckCircle, Circle } from 'lucide-react';
+import { Plus, Trash2, X, LogOut, Shield, CheckCircle, Circle, Download, Download as DownloadIcon, FileText, Video, Music } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { adminService, Exam } from '../services/admin';
 import { authService } from '../services/auth';
+import { materialsService, Lesson } from '../services/materials';
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -14,11 +16,35 @@ const AdminPage = () => {
   const [adminLoginError, setAdminLoginError] = useState('');
   const [systemMessage, setSystemMessage] = useState('');
   const [newExamTitle, setNewExamTitle] = useState('');
+  const [bulkTokenCount, setBulkTokenCount] = useState(1);
   const [newQuestion, setNewQuestion] = useState({
     text: '',
     answers: ['', '', '', ''],
     correctIdx: 0,
   });
+
+  // Lessons and Materials state
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [showLessonModal, setShowLessonModal] = useState(false);
+  const [showMaterialModal, setShowMaterialModal] = useState(false);
+  const [newLesson, setNewLesson] = useState({
+    title: '',
+    description: '',
+    videoUrl: '',
+    audioUrl: '',
+    order: 0,
+  });
+  const [newMaterial, setNewMaterial] = useState({
+    title: '',
+    fileUrl: '',
+    fileType: 'pdf',
+    fileSize: 0,
+    lessonId: '',
+  });
+
+  // Tab navigation
+  const [activeTab, setActiveTab] = useState<'exams' | 'lessons'>('exams');
 
   // Load exams from backend on mount
   useEffect(() => {
@@ -35,6 +61,16 @@ const AdminPage = () => {
       }
     };
     loadExams();
+
+    const loadLessons = async () => {
+      try {
+        const data = await materialsService.getAllLessons();
+        setLessons(data);
+      } catch (error) {
+        console.error('Failed to load lessons:', error);
+      }
+    };
+    loadLessons();
   }, [isAdminAuthenticated]);
 
   const handleAdminLogin = async (event: FormEvent) => {
@@ -130,6 +166,87 @@ const AdminPage = () => {
     navigate('/');
   };
 
+  // Lessons management
+  const handleCreateLesson = async () => {
+    if (!newLesson.title.trim()) return;
+
+    try {
+      const lesson = await materialsService.createLesson(newLesson);
+      setLessons([...lessons, lesson]);
+      setNewLesson({ title: '', description: '', videoUrl: '', audioUrl: '', order: 0 });
+      setShowLessonModal(false);
+      setSystemMessage('שיעור חדש נוצר בהצלחה');
+    } catch (error) {
+      console.error('Failed to create lesson:', error);
+      setSystemMessage('נכשל ביצירת שיעור');
+    }
+  };
+
+  const handleUpdateLesson = async (id: string, data: any) => {
+    try {
+      const updatedLesson = await materialsService.updateLesson(id, data);
+      setLessons(lessons.map(l => l.id === id ? updatedLesson : l));
+      if (selectedLesson?.id === id) setSelectedLesson(updatedLesson);
+      setSystemMessage('שיעור עודכן בהצלחה');
+    } catch (error) {
+      console.error('Failed to update lesson:', error);
+      setSystemMessage('נכשל בעדכון שיעור');
+    }
+  };
+
+  const handleDeleteLesson = async (id: string) => {
+    try {
+      await materialsService.deleteLesson(id);
+      setLessons(lessons.filter(l => l.id !== id));
+      if (selectedLesson?.id === id) setSelectedLesson(null);
+      setSystemMessage('שיעור נמחק בהצלחה');
+    } catch (error) {
+      console.error('Failed to delete lesson:', error);
+      setSystemMessage('נכשל במחיקת שיעור');
+    }
+  };
+
+  // Materials management
+  const handleCreateMaterial = async () => {
+    if (!newMaterial.title.trim() || !newMaterial.fileUrl.trim()) return;
+
+    try {
+      const material = await materialsService.createMaterial(newMaterial);
+      if (selectedLesson) {
+        const updatedLesson = {
+          ...selectedLesson,
+          materials: [...selectedLesson.materials, material],
+        };
+        setLessons(lessons.map(l => l.id === selectedLesson.id ? updatedLesson : l));
+        setSelectedLesson(updatedLesson);
+      }
+      setNewMaterial({ title: '', fileUrl: '', fileType: 'pdf', fileSize: 0, lessonId: '' });
+      setShowMaterialModal(false);
+      setSystemMessage('חומר חדש נוצר בהצלחה');
+    } catch (error) {
+      console.error('Failed to create material:', error);
+      setSystemMessage('נכשל ביצירת חומר');
+    }
+  };
+
+  const handleDeleteMaterial = async (id: string) => {
+    try {
+      await materialsService.deleteMaterial(id);
+      if (selectedLesson) {
+        const updatedLesson = {
+          ...selectedLesson,
+          materials: selectedLesson.materials.filter(m => m.id !== id),
+        };
+        setLessons(lessons.map(l => l.id === selectedLesson.id ? updatedLesson : l));
+        setSelectedLesson(updatedLesson);
+      }
+      setSystemMessage('חומר נמחק בהצלחה');
+    } catch (error) {
+      console.error('Failed to delete material:', error);
+      setSystemMessage('נכשל במחיקת חומר');
+    }
+  };
+
   if (!isAdminAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
@@ -186,6 +303,24 @@ const AdminPage = () => {
               >
                 חזרה לאתר
               </button>
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setActiveTab('exams')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    activeTab === 'exams' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  מבחנים
+                </button>
+                <button
+                  onClick={() => setActiveTab('lessons')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    activeTab === 'lessons' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  שיעורים
+                </button>
+              </div>
               <button
                 onClick={handleLogout}
                 className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
@@ -199,9 +334,10 @@ const AdminPage = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Exams List */}
-          <div className="lg:col-span-1">
+        {activeTab === 'exams' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Exams List */}
+            <div className="lg:col-span-1">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold">מבחנים</h2>
               <button
@@ -392,27 +528,55 @@ const AdminPage = () => {
                 <div className="card">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-bold">טוקנים למבחן</h3>
-                    <button
-                      onClick={async () => {
-                        try {
-                          const token = await adminService.createToken({ examId: selectedExam.id });
-                          const updatedExam = {
-                            ...selectedExam,
-                            tokens: [...(selectedExam.tokens || []), token],
-                          };
-                          setExams(exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
-                          setSelectedExam(updatedExam);
-                          setSystemMessage(`טוקן חדש נוצר: ${token.tokenCode}`);
-                        } catch (error) {
-                          console.error('Failed to create token:', error);
-                          setSystemMessage('נכשל ביצירת טוקן');
-                        }
-                      }}
-                      className="btn-primary flex items-center justify-center gap-2"
-                    >
-                      <Plus className="w-5 h-5" />
-                      צור טוקן
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={bulkTokenCount}
+                        onChange={(e) => setBulkTokenCount(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center"
+                      />
+                      <button
+                        onClick={async () => {
+                          try {
+                            const tokens = await adminService.createBulkTokens({ examId: selectedExam.id, count: bulkTokenCount });
+                            const updatedExam = {
+                              ...selectedExam,
+                              tokens: [...(selectedExam.tokens || []), ...tokens],
+                            };
+                            setExams(exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
+                            setSelectedExam(updatedExam);
+                            setSystemMessage(`נוצרו ${bulkTokenCount} טוקנים חדשים`);
+                          } catch (error) {
+                            console.error('Failed to create bulk tokens:', error);
+                            setSystemMessage('נכשל ביצירת טוקנים');
+                          }
+                        }}
+                        className="btn-primary flex items-center justify-center gap-2"
+                      >
+                        <Plus className="w-5 h-5" />
+                        צור טוקנים
+                      </button>
+                      {(selectedExam.tokens || []).length > 0 && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await adminService.downloadAllQRCodes(selectedExam.id, selectedExam.title);
+                              setSystemMessage('הורדת כל ה-QR codes התחילה');
+                            } catch (error) {
+                              console.error('Failed to download all QR codes:', error);
+                              setSystemMessage('נכשל בהורדת QR codes');
+                            }
+                          }}
+                          className="btn-secondary flex items-center justify-center gap-2"
+                          title="הורד את כל קודי ה-QR"
+                        >
+                          <DownloadIcon className="w-5 h-5" />
+                          הורד הכל
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {systemMessage && (
@@ -427,15 +591,35 @@ const AdminPage = () => {
                     ) : (
                       (selectedExam.tokens || []).map((token) => (
                         <div key={token.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-                          <div>
-                            <div className="font-mono text-lg font-bold tracking-wider">{token.tokenCode}</div>
-                            <div className="text-xs text-gray-500">
-                              {token.usedAt ? `נוצל בתאריך ${new Date(token.usedAt).toLocaleString('he-IL')}` : 'עדיין לא נוצל'}
+                          <div className="flex items-center gap-4">
+                            <QRCodeCanvas value={token.tokenCode} size={60} level="H" />
+                            <div>
+                              <div className="font-mono text-lg font-bold tracking-wider">{token.tokenCode}</div>
+                              <div className="text-xs text-gray-500">
+                                {token.usedAt ? `נוצל בתאריך ${new Date(token.usedAt).toLocaleString('he-IL')}` : 'עדיין לא נוצל'}
+                              </div>
                             </div>
                           </div>
-                          <span className={`text-xs px-3 py-1 rounded-full ${token.isUsed ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                            {token.isUsed ? 'נוצל' : 'זמין'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-3 py-1 rounded-full ${token.isUsed ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                              {token.isUsed ? 'נוצל' : 'זמין'}
+                            </span>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await adminService.downloadTokenQR(token.id);
+                                  setSystemMessage(`הורדת QR עבור טוקן ${token.tokenCode}`);
+                                } catch (error) {
+                                  console.error('Failed to download QR:', error);
+                                  setSystemMessage('נכשל בהורדת QR');
+                                }
+                              }}
+                              className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="הורד QR code"
+                            >
+                              <Download className="w-5 h-5" />
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}
@@ -455,6 +639,208 @@ const AdminPage = () => {
             )}
           </div>
         </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Lessons List */}
+            <div className="lg:col-span-1">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold">שיעורים</h2>
+                <button
+                  onClick={() => setShowLessonModal(true)}
+                  className="btn-primary p-2"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {lessons.map((lesson) => (
+                  <div
+                    key={lesson.id}
+                    className={`card-hover cursor-pointer transition-all duration-200 ${
+                      selectedLesson?.id === lesson.id
+                        ? 'ring-2 ring-blue-500 bg-blue-50/50'
+                        : ''
+                    }`}
+                    onClick={() => setSelectedLesson(lesson)}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-semibold">{lesson.title}</h3>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteLesson(lesson.id);
+                        }}
+                        className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-500">{lesson.materials.length} חומרים</p>
+                    {lesson.videoUrl && (
+                      <span className="inline-block mt-2 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                        <Video className="w-3 h-3 inline mr-1" />
+                        וידאו
+                      </span>
+                    )}
+                    {lesson.audioUrl && (
+                      <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full mr-2">
+                        <Music className="w-3 h-3 inline mr-1" />
+                        אודיו
+                      </span>
+                    )}
+                  </div>
+                ))}
+
+                {lessons.length === 0 && (
+                  <div className="card text-center py-8">
+                    <p className="text-gray-500 mb-4">אין שיעורים עדיין</p>
+                    <button
+                      onClick={() => setShowLessonModal(true)}
+                      className="btn-primary"
+                    >
+                      צור שיעור חדש
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Lesson Details */}
+            <div className="lg:col-span-2">
+              {selectedLesson ? (
+                <div className="space-y-6">
+                  <div className="card">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-2xl font-bold">{selectedLesson.title}</h2>
+                    </div>
+
+                    {selectedLesson.description && (
+                      <p className="text-gray-600 mb-4">{selectedLesson.description}</p>
+                    )}
+
+                    {/* Media URLs */}
+                    <div className="space-y-4 mb-6">
+                      {selectedLesson.videoUrl && (
+                        <div className="bg-blue-50 rounded-xl p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Video className="w-5 h-5 text-blue-600" />
+                            <span className="font-medium">קישור לוידאו</span>
+                          </div>
+                          <input
+                            type="text"
+                            value={selectedLesson.videoUrl}
+                            onChange={(e) => handleUpdateLesson(selectedLesson.id, { videoUrl: e.target.value })}
+                            className="input-field w-full"
+                          />
+                        </div>
+                      )}
+
+                      {selectedLesson.audioUrl && (
+                        <div className="bg-green-50 rounded-xl p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Music className="w-5 h-5 text-green-600" />
+                            <span className="font-medium">קישור לאודיו</span>
+                          </div>
+                          <input
+                            type="text"
+                            value={selectedLesson.audioUrl}
+                            onChange={(e) => handleUpdateLesson(selectedLesson.id, { audioUrl: e.target.value })}
+                            className="input-field w-full"
+                          />
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleUpdateLesson(selectedLesson.id, { videoUrl: prompt('הכנס קישור לוידאו:') || '' })}
+                          className="btn-secondary flex-1 flex items-center justify-center gap-2"
+                        >
+                          <Video className="w-4 h-4" />
+                          הוסף וידאו
+                        </button>
+                        <button
+                          onClick={() => handleUpdateLesson(selectedLesson.id, { audioUrl: prompt('הכנס קישור לאודיו:') || '' })}
+                          className="btn-secondary flex-1 flex items-center justify-center gap-2"
+                        >
+                          <Music className="w-4 h-4" />
+                          הוסף אודיו
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Materials */}
+                    <div>
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-bold">חומרים ({selectedLesson.materials.length})</h3>
+                        <button
+                          onClick={() => {
+                            setNewMaterial({ ...newMaterial, lessonId: selectedLesson.id });
+                            setShowMaterialModal(true);
+                          }}
+                          className="btn-primary flex items-center justify-center gap-2"
+                        >
+                          <Plus className="w-5 h-5" />
+                          הוסף חומר
+                        </button>
+                      </div>
+
+                      {selectedLesson.materials.length === 0 ? (
+                        <p className="text-gray-500 text-center py-8">אין חומרים לשיעור הזה עדיין</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {selectedLesson.materials.map((material) => (
+                            <div key={material.id} className="bg-gray-50 rounded-xl p-4">
+                              <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                    <FileText className="w-5 h-5 text-red-600" />
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-gray-900">{material.title}</p>
+                                    <p className="text-sm text-gray-500">{material.fileType.toUpperCase()}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <a
+                                    href={material.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="פתח קובץ"
+                                  >
+                                    <Download className="w-5 h-5" />
+                                  </a>
+                                  <button
+                                    onClick={() => handleDeleteMaterial(material.id)}
+                                    className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="מחק חומר"
+                                  >
+                                    <Trash2 className="w-5 h-5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="card text-center py-16">
+                  <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    בחר שיעור לעריכה
+                  </h3>
+                  <p className="text-gray-500">
+                    או צור שיעור חדש כדי להתחיל
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Create Exam Modal */}
@@ -494,6 +880,141 @@ const AdminPage = () => {
                 </button>
                 <button
                   onClick={() => setShowCreateModal(false)}
+                  className="btn-secondary flex-1"
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Lesson Modal */}
+      {showLessonModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="card max-w-md w-full animate-scale-in">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">צור שיעור חדש</h3>
+              <button
+                onClick={() => setShowLessonModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  כותרת השיעור
+                </label>
+                <input
+                  type="text"
+                  value={newLesson.title}
+                  onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
+                  placeholder="הכנס כותרת"
+                  className="input-field"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  תיאור
+                </label>
+                <textarea
+                  value={newLesson.description}
+                  onChange={(e) => setNewLesson({ ...newLesson, description: e.target.value })}
+                  placeholder="הכנס תיאור"
+                  className="input-field"
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCreateLesson}
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  צור
+                </button>
+                <button
+                  onClick={() => setShowLessonModal(false)}
+                  className="btn-secondary flex-1"
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Material Modal */}
+      {showMaterialModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="card max-w-md w-full animate-scale-in">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">הוסף חומר חדש</h3>
+              <button
+                onClick={() => setShowMaterialModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  כותרת החומר
+                </label>
+                <input
+                  type="text"
+                  value={newMaterial.title}
+                  onChange={(e) => setNewMaterial({ ...newMaterial, title: e.target.value })}
+                  placeholder="הכנס כותרת"
+                  className="input-field"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  קישור לקובץ
+                </label>
+                <input
+                  type="text"
+                  value={newMaterial.fileUrl}
+                  onChange={(e) => setNewMaterial({ ...newMaterial, fileUrl: e.target.value })}
+                  placeholder="הכנס קישור לקובץ"
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  סוג קובץ
+                </label>
+                <select
+                  value={newMaterial.fileType}
+                  onChange={(e) => setNewMaterial({ ...newMaterial, fileType: e.target.value })}
+                  className="input-field"
+                >
+                  <option value="pdf">PDF</option>
+                  <option value="doc">DOC</option>
+                  <option value="docx">DOCX</option>
+                  <option value="ppt">PPT</option>
+                  <option value="pptx">PPTX</option>
+                  <option value="zip">ZIP</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCreateMaterial}
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  הוסף
+                </button>
+                <button
+                  onClick={() => setShowMaterialModal(false)}
                   className="btn-secondary flex-1"
                 >
                   ביטול

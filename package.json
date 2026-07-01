@@ -16,6 +16,7 @@
     "type-check:backend": "cd backend && npm run type-check",
     "type-check:frontend": "cd frontend && npm run type-check",
     "prisma:generate": "cd backend && npx prisma generate",
+    "db:push": "cd backend && npx prisma db push --skip-generate",
     "prisma:migrate": "cd backend && npx prisma migrate dev",
     "prisma:studio": "cd backend && npx prisma studio",
     "test:api": "node scripts/test-api.mjs"

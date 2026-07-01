@@ -16,11 +16,16 @@ model User {
 }
 
 model Exam {
-  id          String        @id @default(uuid())
-  title       String
-  isRandom    Boolean       @default(false)
-  questions   Question[]
-  tokens      ExamToken[]
+  id             String            @id @default(uuid())
+  title          String
+  isRandom       Boolean           @default(false)
+  studyProgramId String?
+  studyProgram   StudyProgram?     @relation(fields: [studyProgramId], references: [id])
+  questions      Question[]
+  tokens         ExamToken[]
+  sessions       ExamSession[]
+  rewardRules    ExamRewardRule[]
+  benefits       ExamBenefit[]
 }
 
 model Question {
@@ -43,13 +48,73 @@ model ExamToken {
 }
 
 model ExamSession {
-  id          String        @id @default(uuid())
-  userId      String
-  user        User          @relation(fields: [userId], references: [id])
+  id           String        @id @default(uuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  examId       String
+  exam         Exam          @relation(fields: [examId], references: [id])
+  score        Int?
+  earnedPoints Int           @default(0)
+  answers      Json
+  isCompleted  Boolean       @default(false)
+  startedAt    DateTime      @default(now())
+  completedAt  DateTime?
+}
+
+model StudyProgram {
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  type        String     @default("general")
+  order       Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  lessons     Lesson[]
+  exams       Exam[]
+}
+
+model ExamRewardRule {
+  id        String   @id @default(uuid())
+  examId    String
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  minScore  Int
+  points    Int
+  createdAt DateTime @default(now())
+}
+
+model ExamBenefit {
+  id          String   @id @default(uuid())
   examId      String
-  score       Int?
-  answers     Json
-  isCompleted Boolean       @default(false)
-  startedAt   DateTime      @default(now())
-  completedAt DateTime?
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  costPoints  Int
+  createdAt   DateTime @default(now())
+}
+
+model Lesson {
+  id             String        @id @default(uuid())
+  title          String
+  description    String?
+  videoUrl       String?
+  audioUrl       String?
+  order          Int           @default(0)
+  studyProgramId String?
+  studyProgram   StudyProgram? @relation(fields: [studyProgramId], references: [id])
+  parasha        String?
+  weekDate       DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  materials      Material[]
+}
+
+model Material {
+  id          String        @id @default(uuid())
+  title       String
+  fileUrl     String
+  fileType    String        // 'pdf', 'doc', etc.
+  fileSize    Int
+  lessonId    String?
+  lesson      Lesson?       @relation(fields: [lessonId], references: [id])
+  createdAt   DateTime      @default(now())
 }

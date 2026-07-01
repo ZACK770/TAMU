@@ -1,10 +1,28 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { BookOpen, Smartphone, CheckCircle, Play, Download, GraduationCap } from 'lucide-react';
+import { materialsService, Lesson, Material } from '../services/materials';
 
 const HomePage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+
+  useEffect(() => {
+    const loadMaterials = async () => {
+      try {
+        const lessonsData = await materialsService.getAllLessons();
+        setLessons(lessonsData);
+        const allMaterials = lessonsData.flatMap(lesson => lesson.materials);
+        setMaterials(allMaterials);
+      } catch (error) {
+        console.error('Failed to load materials:', error);
+      }
+    };
+    loadMaterials();
+  }, []);
 
   const handleStartExam = () => {
     if (isAuthenticated) {
@@ -113,53 +131,78 @@ const HomePage = () => {
             חומרי לימוד
           </h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Video Lessons */}
             <div className="card-hover animate-slide-up" style={{ animationDelay: '0.7s' }}>
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-lg font-semibold flex items-center gap-2">
                   <Play className="w-5 h-5 text-blue-600" />
                   שיעורי וידאו
                 </h4>
-                <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">5 שיעורים</span>
+                <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{lessons.filter(l => l.videoUrl).length} שיעורים</span>
               </div>
-              <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mb-4 overflow-hidden">
-                <div className="text-center">
-                  <Play className="w-16 h-16 text-blue-600 mx-auto mb-2 opacity-50" />
-                  <span className="text-gray-500">נגן וידאו</span>
+              {lessons.filter(l => l.videoUrl).length === 0 ? (
+                <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mb-4">
+                  <p className="text-gray-500">אין שיעורי וידאו כרגע</p>
                 </div>
-              </div>
-              <button className="btn-secondary w-full">צפה בשיעורים</button>
+              ) : (
+                <div className="space-y-3">
+                  {lessons.filter(l => l.videoUrl).map((lesson) => (
+                    <div key={lesson.id} className="bg-gray-50 rounded-xl p-4">
+                      <h5 className="font-medium mb-2">{lesson.title}</h5>
+                      {lesson.description && <p className="text-sm text-gray-600 mb-3">{lesson.description}</p>}
+                      <a
+                        href={lesson.videoUrl || undefined}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-secondary w-full inline-flex items-center justify-center gap-2"
+                      >
+                        <Play className="w-4 h-4" />
+                        צפה בשיעור
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
+            {/* Downloadable Materials */}
             <div className="card-hover animate-slide-up" style={{ animationDelay: '0.8s' }}>
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-lg font-semibold flex items-center gap-2">
                   <Download className="w-5 h-5 text-green-600" />
                   קבצים להורדה
                 </h4>
-                <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">3 קבצים</span>
+                <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">{materials.length} קבצים</span>
               </div>
-              <ul className="space-y-3">
-                {[
-                  { name: 'חוברת עבודה - פרק 1', size: '2.5 MB' },
-                  { name: 'חוברת עבודה - פרק 2', size: '3.1 MB' },
-                  { name: 'סיכום חומר', size: '1.8 MB' },
-                ].map((file, idx) => (
-                  <li key={idx} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl hover:from-gray-100 hover:to-gray-50 transition-all duration-200">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                        <span className="text-red-600 font-bold text-sm">PDF</span>
+              {materials.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">אין קבצים להורדה כרגע</p>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {materials.map((material) => (
+                    <li key={material.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl hover:from-gray-100 hover:to-gray-50 transition-all duration-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                          <span className="text-red-600 font-bold text-sm">{material.fileType.toUpperCase()}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{material.title}</p>
+                          <p className="text-sm text-gray-500">{(material.fileSize / 1024 / 1024).toFixed(2)} MB</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{file.name}</p>
-                        <p className="text-sm text-gray-500">{file.size}</p>
-                      </div>
-                    </div>
-                    <button className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors">
-                      <Download className="w-5 h-5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                      <a
+                        href={material.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <Download className="w-5 h-5" />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </div>
