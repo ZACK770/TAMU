@@ -3,6 +3,45 @@ import { AuthRequest } from '../middleware/auth.js';
 import prisma from '../utils/prisma.js';
 import logger from '../utils/logger.js';
 
+export const getMyExamHistory = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const sessions = await prisma.examSession.findMany({
+      where: { userId, isCompleted: true },
+      include: {
+        exam: {
+          include: {
+            benefits: true,
+            studyProgram: true,
+          },
+        },
+      },
+      orderBy: { completedAt: 'desc' },
+    });
+
+    const totalPoints = sessions.reduce((sum, session) => sum + session.earnedPoints, 0);
+
+    return res.json({
+      totalPoints,
+      exams: sessions.map((session) => ({
+        sessionId: session.id,
+        examId: session.examId,
+        examTitle: session.exam.title,
+        score: session.score,
+        earnedPoints: session.earnedPoints,
+        startedAt: session.startedAt,
+        completedAt: session.completedAt,
+        studyProgram: session.exam.studyProgram,
+        benefits: session.exam.benefits,
+      })),
+    });
+  } catch (error) {
+    logger.error('Error getting exam history', { error });
+    return res.status(500).json({ error: 'Failed to get exam history' });
+  }
+};
+
 export const verifyToken = async (req: AuthRequest, res: Response) => {
   try {
     const { token } = req.body;
@@ -217,7 +256,11 @@ export const completeExam = async (req: AuthRequest, res: Response) => {
     // Get exam with questions
     const exam = await prisma.exam.findUnique({
       where: { id: session.examId },
-      include: { questions: true },
+      include: {
+        questions: true,
+        rewardRules: { orderBy: { minScore: 'desc' } },
+        benefits: true,
+      },
     });
 
     if (!exam) {
@@ -235,12 +278,15 @@ export const completeExam = async (req: AuthRequest, res: Response) => {
     }
 
     const score = Math.round((correctCount / exam.questions.length) * 100);
+    const matchedReward = exam.rewardRules.find((rule) => score >= rule.minScore);
+    const earnedPoints = matchedReward?.points || 0;
 
     // Update session
     await prisma.examSession.update({
       where: { id: sessionId },
       data: {
         score,
+        earnedPoints,
         isCompleted: true,
         completedAt: new Date(),
       },
@@ -261,6 +307,8 @@ export const completeExam = async (req: AuthRequest, res: Response) => {
       score,
       correctCount,
       totalQuestions: exam.questions.length,
+      earnedPoints,
+      benefits: exam.benefits,
     });
   } catch (error) {
     logger.error('Error completing exam', { error });
