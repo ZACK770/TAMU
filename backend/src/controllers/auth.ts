@@ -6,6 +6,7 @@ import { yemotService } from '../services/yemot.js';
 import logger from '../utils/logger.js';
 
 const otpCodes = new Map<string, { code: string; expiresAt: number }>();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '1234';
 
 export const sendCode = async (req: Request, res: Response) => {
   try {
@@ -111,6 +112,52 @@ export const verifyCode = async (req: Request, res: Response) => {
   } catch (error) {
     logger.error('Error verifying code', { error });
     return res.status(500).json({ error: 'Failed to verify code' });
+  }
+};
+
+export const adminLogin = async (req: Request, res: Response) => {
+  try {
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
+
+    if (password !== ADMIN_PASSWORD) {
+      logger.warn('Admin login failed');
+      return res.status(401).json({ error: 'Invalid password' });
+    }
+
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('JWT_SECRET not configured');
+    }
+
+    const adminUser = await prisma.user.upsert({
+      where: { phone: 'admin' },
+      update: { fullName: 'Admin' },
+      create: { phone: 'admin', fullName: 'Admin' },
+    });
+
+    const token = jwt.sign(
+      { id: adminUser.id, phone: adminUser.phone },
+      secret,
+      { expiresIn: '7d' }
+    );
+
+    logger.info('Admin authenticated successfully', { userId: adminUser.id });
+
+    return res.json({
+      token,
+      user: {
+        id: adminUser.id,
+        phone: adminUser.phone,
+        fullName: adminUser.fullName || 'Admin',
+      },
+    });
+  } catch (error) {
+    logger.error('Error during admin login', { error });
+    return res.status(500).json({ error: 'Failed to login' });
   }
 };
 

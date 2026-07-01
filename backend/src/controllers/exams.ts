@@ -22,7 +22,7 @@ export const verifyToken = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Invalid token' });
     }
 
-    if (examToken.isUsed) {
+    if (examToken.isUsed || examToken.usedById) {
       logger.warn('Token already used', { userId, token });
       return res.status(400).json({ error: 'Token already used' });
     }
@@ -35,6 +35,15 @@ export const verifyToken = async (req: AuthRequest, res: Response) => {
     if (!exam) {
       return res.status(404).json({ error: 'Exam not found' });
     }
+
+    await prisma.examToken.update({
+      where: { id: examToken.id },
+      data: {
+        isUsed: true,
+        usedById: userId,
+        usedAt: new Date(),
+      },
+    });
 
     // Create new exam session
     const session = await prisma.examSession.create({

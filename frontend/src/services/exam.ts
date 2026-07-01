@@ -34,12 +34,12 @@ export interface CompleteExamResponse {
 
 export const examService = {
   verifyToken: async (token: string): Promise<VerifyTokenResponse> => {
-    const response = await api.post('/exams/verify-token', { token });
+    const response = await api.post('/api/exams/verify-token', { token });
     return response.data;
   },
 
   getNextQuestion: async (sessionId: string): Promise<NextQuestionResponse> => {
-    const response = await api.get(`/exams/session/${sessionId}/next-question`);
+    const response = await api.get(`/api/exams/session/${sessionId}/next-question`);
     return response.data;
   },
 
@@ -48,7 +48,7 @@ export const examService = {
     questionId: string,
     answerIndex: number
   ): Promise<SubmitAnswerResponse> => {
-    const response = await api.post(`/exams/session/${sessionId}/submit-answer`, {
+    const response = await api.post(`/api/exams/session/${sessionId}/submit-answer`, {
       questionId,
       answerIndex,
     });
@@ -56,7 +56,7 @@ export const examService = {
   },
 
   completeExam: async (sessionId: string): Promise<CompleteExamResponse> => {
-    const response = await api.post(`/exams/session/${sessionId}/complete`);
+    const response = await api.post(`/api/exams/session/${sessionId}/complete`);
     return response.data;
   },
 };

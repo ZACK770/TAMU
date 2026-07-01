@@ -84,6 +84,72 @@ export const getAllExams = async (_req: Request, res: Response) => {
   }
 };
 
+export const updateExam = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { isRandom } = req.body;
+
+    const exam = await prisma.exam.update({
+      where: { id },
+      data: {
+        ...(typeof isRandom === 'boolean' && { isRandom }),
+      },
+      include: {
+        questions: true,
+        tokens: true,
+      },
+    });
+
+    logger.info('Exam updated successfully', { examId: id });
+    return res.json(exam);
+  } catch (error: any) {
+    logger.error('Error updating exam', { error: error.message });
+    return res.status(500).json({ error: 'Failed to update exam' });
+  }
+};
+
+export const addQuestion = async (req: Request, res: Response) => {
+  try {
+    const { examId } = req.params;
+    const { text, answers, correctIdx } = req.body;
+
+    if (!text || !Array.isArray(answers) || correctIdx === undefined) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const question = await prisma.question.create({
+      data: {
+        examId,
+        text,
+        answers,
+        correctIdx,
+      },
+    });
+
+    logger.info('Question created successfully', { examId, questionId: question.id });
+    return res.json(question);
+  } catch (error: any) {
+    logger.error('Error creating question', { error: error.message });
+    return res.status(500).json({ error: 'Failed to create question' });
+  }
+};
+
+export const deleteQuestion = async (req: Request, res: Response) => {
+  try {
+    const { questionId } = req.params;
+
+    await prisma.question.delete({
+      where: { id: questionId },
+    });
+
+    logger.info('Question deleted successfully', { questionId });
+    return res.json({ message: 'Question deleted successfully' });
+  } catch (error: any) {
+    logger.error('Error deleting question', { error: error.message });
+    return res.status(500).json({ error: 'Failed to delete question' });
+  }
+};
+
 export const deleteExam = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

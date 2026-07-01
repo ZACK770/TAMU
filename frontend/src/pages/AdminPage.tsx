@@ -1,13 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, X, LogOut, Shield, CheckCircle, Circle } from 'lucide-react';
-import { adminService, Exam, Question } from '../services/admin';
+import { adminService, Exam } from '../services/admin';
+import { authService } from '../services/auth';
 
 const AdminPage = () => {
   const navigate = useNavigate();
   const [exams, setExams] = useState<Exam[]>([]);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => !!localStorage.getItem('authToken'));
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminLoginError, setAdminLoginError] = useState('');
+  const [systemMessage, setSystemMessage] = useState('');
   const [newExamTitle, setNewExamTitle] = useState('');
   const [newQuestion, setNewQuestion] = useState({
     text: '',
@@ -17,16 +22,35 @@ const AdminPage = () => {
 
   // Load exams from backend on mount
   useEffect(() => {
+    if (!isAdminAuthenticated) return;
+
     const loadExams = async () => {
       try {
         const data = await adminService.getAllExams();
         setExams(data);
       } catch (error) {
         console.error('Failed to load exams:', error);
+        setIsAdminAuthenticated(false);
+        authService.logout();
       }
     };
     loadExams();
-  }, []);
+  }, [isAdminAuthenticated]);
+
+  const handleAdminLogin = async (event: FormEvent) => {
+    event.preventDefault();
+    setAdminLoginError('');
+
+    try {
+      const result = await authService.adminLogin(adminPassword);
+      authService.saveAuth(result.token, result.user);
+      setIsAdminAuthenticated(true);
+      setAdminPassword('');
+    } catch (error) {
+      console.error('Failed to login as admin:', error);
+      setAdminLoginError('סיסמה שגויה');
+    }
+  };
 
   const handleCreateExam = async () => {
     if (!newExamTitle.trim()) return;
@@ -46,40 +70,45 @@ const AdminPage = () => {
     }
   };
 
-  const handleAddQuestion = () => {
+  const handleAddQuestion = async () => {
     if (!selectedExam || !newQuestion.text.trim()) return;
     
-    const question: Question = {
-      id: Date.now().toString(),
-      text: newQuestion.text,
-      answers: newQuestion.answers,
-      correctIdx: newQuestion.correctIdx,
-    };
-    
-    const updatedExam = {
-      ...selectedExam,
-      questions: [...selectedExam.questions, question],
-    };
-    
-    setExams(exams.map(e => e.id === selectedExam.id ? updatedExam : e));
-    setSelectedExam(updatedExam);
-    setNewQuestion({
-      text: '',
-      answers: ['', '', '', ''],
-      correctIdx: 0,
-    });
+    try {
+      const question = await adminService.addQuestion(selectedExam.id, newQuestion);
+      const updatedExam = {
+        ...selectedExam,
+        questions: [...selectedExam.questions, question],
+      };
+      
+      setExams(exams.map(e => e.id === selectedExam.id ? updatedExam : e));
+      setSelectedExam(updatedExam);
+      setNewQuestion({
+        text: '',
+        answers: ['', '', '', ''],
+        correctIdx: 0,
+      });
+    } catch (error) {
+      console.error('Failed to add question:', error);
+      alert('נכשל בהוספת שאלה');
+    }
   };
 
-  const handleDeleteQuestion = (questionId: string) => {
+  const handleDeleteQuestion = async (questionId: string) => {
     if (!selectedExam) return;
     
-    const updatedExam = {
-      ...selectedExam,
-      questions: selectedExam.questions.filter(q => q.id !== questionId),
-    };
-    
-    setExams(exams.map(e => e.id === selectedExam.id ? updatedExam : e));
-    setSelectedExam(updatedExam);
+    try {
+      await adminService.deleteQuestion(questionId);
+      const updatedExam = {
+        ...selectedExam,
+        questions: selectedExam.questions.filter(q => q.id !== questionId),
+      };
+      
+      setExams(exams.map(e => e.id === selectedExam.id ? updatedExam : e));
+      setSelectedExam(updatedExam);
+    } catch (error) {
+      console.error('Failed to delete question:', error);
+      alert('נכשל במחיקת שאלה');
+    }
   };
 
   const handleDeleteExam = async (examId: string) => {
@@ -96,8 +125,47 @@ const AdminPage = () => {
   };
 
   const handleLogout = () => {
+    authService.logout();
+    setIsAdminAuthenticated(false);
     navigate('/');
   };
+
+  if (!isAdminAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <form onSubmit={handleAdminLogin} className="card max-w-md w-full space-y-6">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Shield className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold gradient-text">כניסת מנהל</h1>
+            <p className="text-gray-500 mt-2">הזן סיסמת מנהל כדי להמשיך</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              סיסמה
+            </label>
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={(event) => setAdminPassword(event.target.value)}
+              className="input-field"
+              autoFocus
+            />
+          </div>
+
+          {adminLoginError && (
+            <div className="text-red-600 text-sm text-center">{adminLoginError}</div>
+          )}
+
+          <button type="submit" className="btn-primary w-full">
+            כניסה
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -201,13 +269,15 @@ const AdminPage = () => {
                       <input
                         type="checkbox"
                         checked={selectedExam.isRandom}
-                        onChange={(e) => {
-                          const updatedExam = {
-                            ...selectedExam,
-                            isRandom: e.target.checked,
-                          };
-                          setExams(exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
-                          setSelectedExam(updatedExam);
+                        onChange={async (e) => {
+                          try {
+                            const updatedExam = await adminService.updateExam(selectedExam.id, { isRandom: e.target.checked });
+                            setExams(exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
+                            setSelectedExam(updatedExam);
+                          } catch (error) {
+                            console.error('Failed to update exam:', error);
+                            alert('נכשל בעדכון מבחן');
+                          }
                         }}
                         className="w-4 h-4 text-blue-600 rounded"
                       />
@@ -320,20 +390,56 @@ const AdminPage = () => {
 
                 {/* Generate Tokens */}
                 <div className="card">
-                  <h3 className="text-xl font-bold mb-4">טוקנים למבחן</h3>
-                  <button
-                    onClick={() => {
-                      // This would normally call the API to generate tokens
-                      alert('פונקציונליות זו דורשת חיבור למסד נתונים');
-                    }}
-                    className="btn-primary w-full flex items-center justify-center gap-2"
-                  >
-                    <Plus className="w-5 h-5" />
-                    צור טוקנים חדשים
-                  </button>
-                  <p className="text-sm text-gray-500 mt-2 text-center">
-                    דורש חיבור למסד נתונים
-                  </p>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold">טוקנים למבחן</h3>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const token = await adminService.createToken({ examId: selectedExam.id });
+                          const updatedExam = {
+                            ...selectedExam,
+                            tokens: [...(selectedExam.tokens || []), token],
+                          };
+                          setExams(exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
+                          setSelectedExam(updatedExam);
+                          setSystemMessage(`טוקן חדש נוצר: ${token.tokenCode}`);
+                        } catch (error) {
+                          console.error('Failed to create token:', error);
+                          setSystemMessage('נכשל ביצירת טוקן');
+                        }
+                      }}
+                      className="btn-primary flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-5 h-5" />
+                      צור טוקן
+                    </button>
+                  </div>
+
+                  {systemMessage && (
+                    <div className="mb-4 rounded-xl bg-blue-50 text-blue-700 px-4 py-3 text-sm">
+                      {systemMessage}
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    {(selectedExam.tokens || []).length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-4">אין טוקנים למבחן הזה עדיין</p>
+                    ) : (
+                      (selectedExam.tokens || []).map((token) => (
+                        <div key={token.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
+                          <div>
+                            <div className="font-mono text-lg font-bold tracking-wider">{token.tokenCode}</div>
+                            <div className="text-xs text-gray-500">
+                              {token.usedAt ? `נוצל בתאריך ${new Date(token.usedAt).toLocaleString('he-IL')}` : 'עדיין לא נוצל'}
+                            </div>
+                          </div>
+                          <span className={`text-xs px-3 py-1 rounded-full ${token.isUsed ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                            {token.isUsed ? 'נוצל' : 'זמין'}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (

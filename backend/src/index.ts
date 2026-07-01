@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -21,6 +22,12 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8081;
+const frontendDistPath = path.join(__dirname, '../../frontend/dist');
+const frontendIndexPath = path.join(frontendDistPath, 'index.html');
+
+if (!fs.existsSync(frontendIndexPath)) {
+  throw new Error(`Frontend build is missing: ${frontendIndexPath}. Run npm run build:frontend before starting the server.`);
+}
 
 // Security middleware
 app.use(helmet({
@@ -29,7 +36,7 @@ app.use(helmet({
 
 // CORS
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5179',
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
 }));
 
@@ -55,14 +62,12 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Serve static files from frontend build (only in production)
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../../frontend/dist')));
-  
-  // SPA fallback (only in production)
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
-  });
-}
+app.use(express.static(frontendDistPath));
+
+// SPA fallback (only in production)
+app.get('*', (_req, res) => {
+  res.sendFile(frontendIndexPath);
+});
 
 // Error handling
 app.use(errorLogger);
