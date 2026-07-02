@@ -12,7 +12,12 @@ export const getMyExamHistory = async (req: AuthRequest, res: Response) => {
       include: {
         exam: {
           include: {
-            benefits: true,
+            questions: true,
+            benefits: {
+              include: {
+                benefit: true,
+              },
+            },
             studyProgram: true,
           },
         },
@@ -22,19 +27,57 @@ export const getMyExamHistory = async (req: AuthRequest, res: Response) => {
 
     const totalPoints = sessions.reduce((sum, session) => sum + session.earnedPoints, 0);
 
+    // Get user's available points
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { availablePoints: true },
+    });
+
+    // Calculate average score
+    const scores = sessions.map((s) => s.score).filter((s): s is number => s !== null);
+    const averageScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+
     return res.json({
       totalPoints,
-      exams: sessions.map((session) => ({
-        sessionId: session.id,
-        examId: session.examId,
-        examTitle: session.exam.title,
-        score: session.score,
-        earnedPoints: session.earnedPoints,
-        startedAt: session.startedAt,
-        completedAt: session.completedAt,
-        studyProgram: session.exam.studyProgram,
-        benefits: session.exam.benefits,
-      })),
+      availablePoints: user?.availablePoints || 0,
+      averageScore,
+      totalExams: sessions.length,
+      exams: sessions.map((session) => {
+        const answers = session.answers as Record<string, number>;
+        let correctCount = 0;
+        let incorrectCount = 0;
+        let skippedCount = 0;
+
+        session.exam.questions.forEach((q) => {
+          const userAnswer = answers[q.id];
+          if (userAnswer === undefined) {
+            skippedCount++;
+          } else if (userAnswer === q.correctIdx) {
+            correctCount++;
+          } else {
+            incorrectCount++;
+          }
+        });
+
+        return {
+          sessionId: session.id,
+          examId: session.examId,
+          examTitle: session.exam.title,
+          score: session.score,
+          earnedPoints: session.earnedPoints,
+          startedAt: session.startedAt,
+          completedAt: session.completedAt,
+          timeSpent: session.timeSpent,
+          studyProgram: session.exam.studyProgram,
+          benefits: session.exam.benefits,
+          questionStats: {
+            total: session.exam.questions.length,
+            correct: correctCount,
+            incorrect: incorrectCount,
+            skipped: skippedCount,
+          },
+        };
+      }),
     });
   } catch (error) {
     logger.error('Error getting exam history', { error });
@@ -259,7 +302,11 @@ export const completeExam = async (req: AuthRequest, res: Response) => {
       include: {
         questions: true,
         rewardRules: { orderBy: { minScore: 'desc' } },
-        benefits: true,
+        benefits: {
+          include: {
+            benefit: true,
+          },
+        },
       },
     });
 
@@ -281,27 +328,39 @@ export const completeExam = async (req: AuthRequest, res: Response) => {
     const matchedReward = exam.rewardRules.find((rule) => score >= rule.minScore);
     const earnedPoints = matchedReward?.points || 0;
 
-    // Update session
-    await prisma.examSession.update({
-      where: { id: sessionId },
-      data: {
-        score,
-        earnedPoints,
-        isCompleted: true,
-        completedAt: new Date(),
-      },
+    // Update session and user points in transaction
+    await prisma.$transaction(async (tx) => {
+      // Update session
+      await tx.examSession.update({
+        where: { id: sessionId },
+        data: {
+          score,
+          earnedPoints,
+          isCompleted: true,
+          completedAt: new Date(),
+        },
+      });
+
+      // Update user points
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          totalPoints: { increment: earnedPoints },
+          availablePoints: { increment: earnedPoints },
+        },
+      });
+
+      // Mark token as used
+      await tx.examToken.updateMany({
+        where: { examId: session.examId, usedById: userId },
+        data: {
+          isUsed: true,
+          usedAt: new Date(),
+        },
+      });
     });
 
-    // Mark token as used
-    await prisma.examToken.updateMany({
-      where: { examId: session.examId, usedById: userId },
-      data: {
-        isUsed: true,
-        usedAt: new Date(),
-      },
-    });
-
-    logger.info('Exam completed', { sessionId, score, userId });
+    logger.info('Exam completed', { sessionId, score, userId, earnedPoints });
 
     return res.json({
       score,

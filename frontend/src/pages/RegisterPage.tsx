@@ -31,36 +31,36 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="card max-w-md w-full animate-scale-in">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+      <div className="card max-w-md w-full animate-scale-in border border-slate-200 shadow-sm bg-white p-8">
         <button
           onClick={() => navigate('/auth')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6 transition-colors"
+          className="flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-6 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
           חזרה לאימות
         </button>
 
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <User className="w-8 h-8 text-white" />
+          <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4 border border-slate-200">
+            <User className="w-5 h-5 text-slate-900" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">הרשמה</h2>
-          <p className="text-gray-600">
-            השלם את הפרטים כדי להתחיל ללמוד
+          <h2 className="text-xl font-bold text-slate-900 mb-2">הרשמה</h2>
+          <p className="text-sm text-slate-500">
+            השלם את הפרטים כדי להמשיך
           </p>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl mb-6 flex items-center gap-2 animate-fade-in">
-            <span className="text-lg">⚠️</span>
+          <div className="bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 rounded-xl mb-6 text-sm font-medium flex items-center gap-2 animate-fade-in">
+            <span className="w-1.5 h-1.5 bg-slate-900 rounded-full"></span>
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">
               מספר טלפון
             </label>
             <div className="relative">
@@ -68,14 +68,14 @@ const RegisterPage = () => {
                 type="tel"
                 value={phone}
                 disabled
-                className="input-field bg-gray-100 text-left pr-12 cursor-not-allowed"
+                className="input-field bg-slate-100/50 text-slate-500 text-left pr-12 cursor-not-allowed border-slate-200"
                 dir="ltr"
               />
-              <Phone className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Phone className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">
               שם מלא
             </label>
             <div className="relative">
@@ -84,26 +84,26 @@ const RegisterPage = () => {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="הכנס שם מלא"
-                className="input-field pr-12"
+                className="input-field pr-12 focus:ring-slate-900 border-slate-200"
                 required
               />
-              <User className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <User className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             </div>
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary w-full flex items-center justify-center gap-2"
+            className="btn-primary w-full flex items-center justify-center gap-2 py-3"
           >
             {loading ? (
               <>
-                <RefreshCw className="w-5 h-5 animate-spin" />
+                <RefreshCw className="w-4 h-4 animate-spin" />
                 נרשם...
               </>
             ) : (
               <>
                 הרשם
-                <CheckCircle2 className="w-5 h-5" />
+                <CheckCircle2 className="w-4 h-4" />
               </>
             )}
           </button>

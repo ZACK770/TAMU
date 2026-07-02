@@ -15,6 +15,9 @@ import authRoutes from './routes/auth.js';
 import examRoutes from './routes/exams.js';
 import adminRoutes from './routes/admin.js';
 import materialRoutes from './routes/materials.js';
+import benefitsRoutes from './routes/benefits.js';
+import redemptionsRoutes from './routes/redemptions.js';
+import statsRoutes from './routes/stats.js';
 
 dotenv.config();
 
@@ -57,6 +60,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/materials', materialRoutes);
+app.use('/api/benefits', benefitsRoutes);
+app.use('/api/redemptions', redemptionsRoutes);
+app.use('/api/stats', statsRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

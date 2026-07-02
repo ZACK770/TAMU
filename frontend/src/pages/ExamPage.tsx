@@ -22,7 +22,6 @@ const ExamPage = () => {
   useEffect(() => {
     console.log('[ExamPage] useEffect running');
     
-    // Check localStorage directly instead of relying on useAuth state
     const tokenFromStorage = localStorage.getItem('authToken');
     const userFromStorage = localStorage.getItem('user');
     
@@ -35,7 +34,7 @@ const ExamPage = () => {
       return;
     }
 
-    console.log('[ExamPage] User is authenticated (from localStorage), proceeding');
+    console.log('[ExamPage] User is authenticated, proceeding');
     if (token) {
       handleVerifyToken(token);
     }
@@ -54,7 +53,7 @@ const ExamPage = () => {
       setSessionId(response.sessionId);
       await fetchNextQuestion(response.sessionId);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'טוקן לא תקין');
+      setError(err.response?.data?.error || 'מזהה מבחן לא תקין');
     } finally {
       setLoading(false);
     }
@@ -96,7 +95,7 @@ const ExamPage = () => {
     try {
       await examService.submitAnswer(sessionId, currentQuestion.id, answerIndex);
       
-      // Small delay for chat-like feel
+      // Delay for realistic chat flow feel
       setTimeout(() => {
         fetchNextQuestion(sessionId);
       }, 600);
@@ -116,9 +115,11 @@ const ExamPage = () => {
     }
   };
 
-  const handleManualToken = (e: React.FormEvent) => {
+  const handleManualTokenSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    handleVerifyToken(manualToken);
+    if (manualToken) {
+      handleVerifyToken(manualToken);
+    }
   };
 
   const handleLogout = () => {
@@ -126,61 +127,111 @@ const ExamPage = () => {
     navigate('/');
   };
 
+  const handleKeypadPress = (num: string) => {
+    if (manualToken.length < 12) {
+      setManualToken(prev => prev + num);
+    }
+  };
+
+  const handleKeypadDelete = () => {
+    setManualToken(prev => prev.slice(0, -1));
+  };
+
+  const handleKeypadClear = () => {
+    setManualToken('');
+  };
+
   if (!sessionId) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="card max-w-md w-full animate-scale-in">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+        <div className="card max-w-md w-full animate-scale-in border border-slate-200 shadow-sm bg-white p-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold gradient-text">כניסה למבחן</h2>
-            <button onClick={handleLogout} className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors">
+            <h2 className="text-xl font-bold text-slate-900">כניסה למבחן</h2>
+            <button onClick={handleLogout} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-lg transition-colors">
               <LogOut className="w-5 h-5" />
             </button>
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl mb-4 flex items-center gap-2 animate-fade-in">
-              <span className="text-lg">⚠️</span>
+            <div className="bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 rounded-xl mb-6 text-sm font-medium flex items-center gap-2 animate-fade-in">
+              <span className="w-1.5 h-1.5 bg-slate-900 rounded-full"></span>
               {error}
             </div>
           )}
 
           {token ? (
-            <div className="text-center py-8">
-              <Loader2 className="w-12 h-12 text-blue-600 mx-auto animate-spin mb-4" />
-              <p className="text-gray-600">טוען מבחן...</p>
+            <div className="text-center py-12">
+              <Loader2 className="w-8 h-8 text-slate-900 mx-auto animate-spin mb-4" />
+              <p className="text-sm text-slate-500">טוען מבחן...</p>
             </div>
           ) : (
-            <form onSubmit={handleManualToken} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+            <form onSubmit={handleManualTokenSubmit} className="space-y-6">
+              <div className="space-y-4">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider text-center">
                   מזהה מבחן
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     value={manualToken}
-                    onChange={(e) => setManualToken(e.target.value)}
-                    placeholder="הכנס מזהה מבחן"
-                    className="input-field text-center text-2xl tracking-[0.3em] font-mono pr-12"
+                    readOnly
+                    placeholder="הקש מזהה מבחן"
+                    className="input-field text-center text-xl tracking-[0.25em] font-mono pr-12 bg-slate-50 border-slate-200"
                     required
                   />
-                  <Key className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Key className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                </div>
+
+                {/* Virtual Keypad */}
+                <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto pt-2" dir="ltr">
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => handleKeypadPress(num)}
+                      className="bg-slate-50 hover:bg-slate-100 text-slate-900 border border-slate-200 font-mono text-lg py-3 rounded-xl active:bg-slate-200 transition-colors shadow-sm"
+                    >
+                      {num}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={handleKeypadClear}
+                    className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold py-3 rounded-xl active:bg-slate-200 transition-colors shadow-sm"
+                  >
+                    נקה
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleKeypadPress('0')}
+                    className="bg-slate-50 hover:bg-slate-100 text-slate-900 border border-slate-200 font-mono text-lg py-3 rounded-xl active:bg-slate-200 transition-colors shadow-sm"
+                  >
+                    0
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleKeypadDelete}
+                    className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold py-3 rounded-xl active:bg-slate-200 transition-colors shadow-sm"
+                  >
+                    מחק
+                  </button>
                 </div>
               </div>
+
               <button
                 type="submit"
-                disabled={loading}
-                className="btn-primary w-full flex items-center justify-center gap-2"
+                disabled={loading || !manualToken}
+                className="btn-primary w-full flex items-center justify-center gap-2 py-3"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     טוען...
                   </>
                 ) : (
                   <>
                     התחל מבחן
-                    <Key className="w-5 h-5" />
+                    <Key className="w-4 h-4" />
                   </>
                 )}
               </button>
@@ -189,7 +240,7 @@ const ExamPage = () => {
 
           <button
             onClick={() => navigate('/')}
-            className="w-full mt-6 text-gray-600 hover:text-gray-800 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+            className="w-full mt-6 text-slate-500 hover:text-slate-800 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
           >
             חזרה לדף הבית
           </button>
@@ -200,22 +251,22 @@ const ExamPage = () => {
 
   if (examCompleted) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="card max-w-md w-full text-center animate-scale-in">
-          <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg animate-bounce-slow">
-            <Trophy className="w-10 h-10 text-white" />
+      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+        <div className="card max-w-md w-full text-center animate-scale-in border border-slate-200 shadow-sm bg-white p-8">
+          <div className="w-16 h-16 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Trophy className="w-6 h-6 text-slate-900" />
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">המבחן הסתיים!</h2>
-          <p className="text-gray-600 mb-6">כל הכבוד על ההשלמה</p>
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">המבחן הסתיים</h2>
+          <p className="text-sm text-slate-500 mb-6">כל הכבוד על ההשלמה</p>
           
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 mb-6">
-            <div className="text-6xl font-bold gradient-text mb-2">{score}%</div>
-            <p className="text-gray-600">ציונך הסופי</p>
+          <div className="bg-slate-50 border border-slate-100 rounded-2xl p-8 mb-6">
+            <div className="text-5xl font-black text-slate-900 mb-1">{score}%</div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">ציונך הסופי</p>
           </div>
           
-          <button onClick={() => navigate('/')} className="btn-primary w-full flex items-center justify-center gap-2">
+          <button onClick={() => navigate('/')} className="btn-primary w-full flex items-center justify-center gap-2 py-3">
             חזרה לדף הבית
-            <CheckCircle className="w-5 h-5" />
+            <CheckCircle className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -223,28 +274,28 @@ const ExamPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col">
+    <div className="min-h-screen bg-slate-950 flex flex-col text-slate-100" dir="rtl">
       {/* Header */}
-      <div className="glass border-b border-gray-700 px-4 py-4 flex justify-between items-center sticky top-0 z-50">
+      <div className="glass border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md px-4 py-4 flex justify-between items-center sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center">
-            <CheckCircle className="w-6 h-6 text-white" />
+          <div className="w-8 h-8 bg-slate-800 border border-slate-700 rounded-lg flex items-center justify-center">
+            <CheckCircle className="w-4 h-4 text-white" />
           </div>
-          <span className="text-white font-semibold text-lg">מבחן</span>
+          <span className="text-white font-bold text-base">ממשק מבחן</span>
         </div>
-        <button onClick={handleLogout} className="text-gray-400 hover:text-white p-2 hover:bg-gray-700 rounded-lg transition-all duration-200">
-          <LogOut className="w-5 h-5" />
+        <button onClick={handleLogout} className="text-slate-400 hover:text-white p-2 hover:bg-slate-800 rounded-lg transition-colors">
+          <LogOut className="w-4 h-4" />
         </button>
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 max-w-3xl mx-auto w-full">
         {messages.length === 0 && (
           <div className="text-center py-12 animate-fade-in">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <CheckCircle className="w-8 h-8 text-white" />
+            <div className="w-12 h-12 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-5 h-5 text-white" />
             </div>
-            <p className="text-gray-400">המבחן מתחיל...</p>
+            <p className="text-sm text-slate-400">המבחן מתחיל פה...</p>
           </div>
         )}
 
@@ -255,22 +306,22 @@ const ExamPage = () => {
             style={{ animationDelay: `${idx * 0.05}s` }}
           >
             <div
-              className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 sm:px-5 py-3 sm:py-4 shadow-lg ${
+              className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${
                 msg.type === 'question'
-                  ? 'bg-gray-800 text-white rounded-br-none border border-gray-700'
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-bl-none shadow-xl'
+                  ? 'bg-slate-900 text-slate-100 rounded-br-none border border-slate-800'
+                  : 'bg-white text-slate-950 rounded-bl-none border border-slate-200 font-medium'
               }`}
             >
               {msg.type === 'question' ? (
                 <>
-                  <p className="mb-4 text-base sm:text-lg leading-relaxed">{msg.content.text}</p>
-                  <div className="space-y-2 sm:space-y-3">
+                  <p className="mb-4 text-sm md:text-base leading-relaxed">{msg.content.text}</p>
+                  <div className="space-y-2">
                     {msg.content.answers.map((answer: string, aIdx: number) => (
                       <button
                         key={aIdx}
                         onClick={() => handleAnswer(aIdx)}
                         disabled={loading}
-                        className="w-full text-right bg-gray-700 hover:bg-gray-600 px-4 py-3 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg active:scale-95 border border-gray-600 hover:border-gray-500"
+                        className="w-full text-right bg-slate-800/50 hover:bg-slate-800 text-slate-300 hover:text-white px-4 py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-slate-800 hover:border-slate-700 active:scale-[0.99] text-sm"
                       >
                         {answer}
                       </button>
@@ -279,8 +330,8 @@ const ExamPage = () => {
                 </>
               ) : (
                 <div className="flex items-center gap-2">
-                  <p className="text-base sm:text-lg">{msg.content}</p>
-                  <Send className="w-4 h-4 opacity-70 flex-shrink-0" />
+                  <p className="text-sm md:text-base">{msg.content}</p>
+                  <Send className="w-3.5 h-3.5 opacity-60 flex-shrink-0" />
                 </div>
               )}
             </div>
@@ -289,10 +340,10 @@ const ExamPage = () => {
         
         {loading && (
           <div className="flex justify-start animate-fade-in">
-            <div className="bg-gray-800 text-white rounded-2xl rounded-br-none px-5 py-4 shadow-lg border border-gray-700">
+            <div className="bg-slate-900 text-slate-100 rounded-2xl rounded-br-none px-4 py-3 shadow-sm border border-slate-800">
               <div className="flex space-x-2 items-center">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
-                <span className="text-gray-400 text-sm">טוען שאלה הבאה...</span>
+                <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                <span className="text-slate-400 text-xs pr-1.5">טוען את השאלה הבאה...</span>
               </div>
             </div>
           </div>
@@ -302,8 +353,8 @@ const ExamPage = () => {
       </div>
 
       {error && (
-        <div className="bg-red-900/90 backdrop-blur-sm border border-red-700 text-red-200 px-4 py-3 text-sm flex items-center gap-2 animate-fade-in">
-          <span className="text-lg">⚠️</span>
+        <div className="bg-slate-900 border-t border-slate-800 text-slate-200 px-4 py-3 text-xs flex items-center gap-2 animate-fade-in justify-center">
+          <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
           {error}
         </div>
       )}

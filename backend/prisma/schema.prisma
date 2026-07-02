@@ -1,95 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 model User {
-  id          String        @id @default(uuid())
-  phone       String        @unique
-  fullName    String?
-  createdAt   DateTime      @default(now())
-  examSessions ExamSession[]
+  id              String           @id @default(uuid())
+  phone           String           @unique
+  fullName        String?
+  totalPoints     Int              @default(0)
+  availablePoints Int              @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @default(now()) @updatedAt
+  examSessions    ExamSession[]
+  redemptions     UserRedemption[]
 }
 
 model Exam {
-  id             String            @id @default(uuid())
+  id             String           @id @default(uuid())
   title          String
-  isRandom       Boolean           @default(false)
+  isRandom       Boolean          @default(false)
   studyProgramId String?
-  studyProgram   StudyProgram?     @relation(fields: [studyProgramId], references: [id])
-  questions      Question[]
-  tokens         ExamToken[]
-  sessions       ExamSession[]
-  rewardRules    ExamRewardRule[]
+  studyProgram   StudyProgram?    @relation(fields: [studyProgramId], references: [id])
   benefits       ExamBenefit[]
+  rewardRules    ExamRewardRule[]
+  sessions       ExamSession[]
+  tokens         ExamToken[]
+  questions      Question[]
 }
 
 model Question {
-  id          String        @id @default(uuid())
-  examId      String
-  exam        Exam          @relation(fields: [examId], references: [id])
-  text        String
-  answers     String[]
-  correctIdx  Int
+  id         String   @id @default(uuid())
+  examId     String
+  text       String
+  answers    String[]
+  correctIdx Int
+  exam       Exam     @relation(fields: [examId], references: [id])
 }
 
 model ExamToken {
-  id          String        @id @default(uuid())
-  tokenCode   String        @unique
-  examId      String
-  exam        Exam          @relation(fields: [examId], references: [id])
-  isUsed      Boolean       @default(false)
-  usedById    String?
-  usedAt      DateTime?
+  id        String    @id @default(uuid())
+  tokenCode String    @unique
+  examId    String
+  isUsed    Boolean   @default(false)
+  usedById  String?
+  usedAt    DateTime?
+  exam      Exam      @relation(fields: [examId], references: [id])
 }
 
 model ExamSession {
-  id           String        @id @default(uuid())
+  id           String    @id @default(uuid())
   userId       String
-  user         User          @relation(fields: [userId], references: [id])
   examId       String
-  exam         Exam          @relation(fields: [examId], references: [id])
   score        Int?
-  earnedPoints Int           @default(0)
   answers      Json
-  isCompleted  Boolean       @default(false)
-  startedAt    DateTime      @default(now())
+  isCompleted  Boolean   @default(false)
+  startedAt    DateTime  @default(now())
   completedAt  DateTime?
+  earnedPoints Int       @default(0)
+  timeSpent    Int?
+  deviceInfo   String?
+  exam         Exam      @relation(fields: [examId], references: [id])
+  user         User      @relation(fields: [userId], references: [id])
 }
 
 model StudyProgram {
-  id          String     @id @default(uuid())
+  id          String   @id @default(uuid())
   title       String
   description String?
-  type        String     @default("general")
-  order       Int        @default(0)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  lessons     Lesson[]
+  type        String   @default("general")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   exams       Exam[]
+  lessons     Lesson[]
 }
 
 model ExamRewardRule {
   id        String   @id @default(uuid())
   examId    String
-  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
   minScore  Int
   points    Int
   createdAt DateTime @default(now())
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
 }
 
 model ExamBenefit {
   id          String   @id @default(uuid())
   examId      String
-  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
   title       String
   description String?
   costPoints  Int
   createdAt   DateTime @default(now())
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
 }
 
 model Lesson {
@@ -99,22 +105,58 @@ model Lesson {
   videoUrl       String?
   audioUrl       String?
   order          Int           @default(0)
-  studyProgramId String?
-  studyProgram   StudyProgram? @relation(fields: [studyProgramId], references: [id])
-  parasha        String?
-  weekDate       DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  parasha        String?
+  studyProgramId String?
+  weekDate       DateTime?
+  studyProgram   StudyProgram? @relation(fields: [studyProgramId], references: [id])
   materials      Material[]
 }
 
 model Material {
-  id          String        @id @default(uuid())
+  id        String   @id @default(uuid())
+  title     String
+  fileUrl   String
+  fileType  String
+  fileSize  Int
+  lessonId  String?
+  createdAt DateTime @default(now())
+  lesson    Lesson?  @relation(fields: [lessonId], references: [id])
+}
+
+model UserRedemption {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  benefitId   String
+  benefit     Benefit  @relation(fields: [benefitId], references: [id], onDelete: Cascade)
+  pointsUsed  Int
+  status      String   @default("pending")
+  notes       String?
+  redeemedAt  DateTime @default(now())
+  processedAt DateTime?
+  processedBy String?
+
+  @@unique([userId, benefitId, redeemedAt])
+  @@index([userId])
+  @@index([benefitId])
+  @@index([status])
+}
+
+model Benefit {
+  id          String           @id @default(uuid())
   title       String
-  fileUrl     String
-  fileType    String        // 'pdf', 'doc', etc.
-  fileSize    Int
-  lessonId    String?
-  lesson      Lesson?       @relation(fields: [lessonId], references: [id])
-  createdAt   DateTime      @default(now())
+  description String?
+  costPoints  Int
+  isActive    Boolean          @default(true)
+  category    String?
+  imageUrl    String?
+  maxUses     Int?
+  currentUses Int              @default(0)
+  validFrom   DateTime?
+  validUntil  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  redemptions UserRedemption[]
 }

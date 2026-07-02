@@ -15,17 +15,34 @@ export interface ExamToken {
   usedAt?: string | null;
 }
 
+export interface ExamRewardRule {
+  id?: string;
+  minScore: number;
+  points: number;
+}
+
+export interface ExamBenefit {
+  id?: string;
+  title: string;
+  description?: string | null;
+  costPoints: number;
+}
+
 export interface Exam {
   id: string;
   title: string;
   isRandom: boolean;
+  studyProgramId?: string | null;
+  studyProgram?: { id: string; title: string } | null;
   questions: Question[];
   tokens?: ExamToken[];
+  rewardRules?: ExamRewardRule[];
+  benefits?: ExamBenefit[];
 }
 
 export const adminService = {
   // Exams
-  createExam: async (data: { title: string; description: string; questions: Question[] }) => {
+  createExam: async (data: { title: string; description: string; questions: Question[]; studyProgramId?: string }) => {
     const response = await api.post('/api/admin/exams', data);
     return response.data;
   },
@@ -35,7 +52,7 @@ export const adminService = {
     return response.data;
   },
 
-  updateExam: async (id: string, data: { isRandom?: boolean }): Promise<Exam> => {
+  updateExam: async (id: string, data: { isRandom?: boolean; studyProgramId?: string | null; rewardRules?: ExamRewardRule[]; benefits?: ExamBenefit[] }): Promise<Exam> => {
     const response = await api.patch(`/api/admin/exams/${id}`, data);
     return response.data;
   },

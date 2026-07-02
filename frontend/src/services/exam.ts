@@ -26,10 +26,48 @@ export interface SubmitAnswerResponse {
   correct: boolean;
 }
 
+export interface ExamBenefit {
+  id: string;
+  title: string;
+  description?: string | null;
+  costPoints: number;
+}
+
 export interface CompleteExamResponse {
   score: number;
   correctCount: number;
   totalQuestions: number;
+  earnedPoints: number;
+  benefits: ExamBenefit[];
+}
+
+export interface QuestionStats {
+  total: number;
+  correct: number;
+  incorrect: number;
+  skipped: number;
+}
+
+export interface ExamHistoryItem {
+  sessionId: string;
+  examId: string;
+  examTitle: string;
+  score: number;
+  earnedPoints: number;
+  startedAt: string;
+  completedAt: string;
+  timeSpent?: number;
+  studyProgram?: { id: string; title: string } | null;
+  benefits: ExamBenefit[];
+  questionStats?: QuestionStats;
+}
+
+export interface ExamHistoryResponse {
+  totalPoints: number;
+  availablePoints: number;
+  averageScore: number;
+  totalExams: number;
+  exams: ExamHistoryItem[];
 }
 
 export const examService = {
@@ -57,6 +95,11 @@ export const examService = {
 
   completeExam: async (sessionId: string): Promise<CompleteExamResponse> => {
     const response = await api.post(`/api/exams/session/${sessionId}/complete`);
+    return response.data;
+  },
+
+  getMyHistory: async (): Promise<ExamHistoryResponse> => {
+    const response = await api.get('/api/exams/me/history');
     return response.data;
   },
 };

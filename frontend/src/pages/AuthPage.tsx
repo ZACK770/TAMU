@@ -56,22 +56,14 @@ const AuthPage = () => {
         navigate('/register', { state: { phone } });
       } else if (response.token && response.user) {
         console.log('[AuthPage] User authenticated, calling login()');
-        console.log('[AuthPage] Token:', response.token);
-        console.log('[AuthPage] User:', response.user);
         
         login(response.token, response.user);
         
-        console.log('[AuthPage] After login(), checking localStorage');
-        const storedAuth = authService.getAuth();
-        console.log('[AuthPage] Stored auth:', storedAuth);
-        
         console.log('[AuthPage] Navigating to /exam in 100ms');
         setTimeout(() => {
-          console.log('[AuthPage] Executing navigation to /exam');
           navigate('/exam');
         }, 100);
       } else {
-        console.log('[AuthPage] Unexpected response structure:', response);
         setError('תגובה לא צפויה מהשרת');
       }
     } catch (err: any) {
@@ -79,43 +71,42 @@ const AuthPage = () => {
       setError(err.response?.data?.error || 'קוד שגוי או פג תוקף');
     } finally {
       setLoading(false);
-      console.log('[AuthPage] Verification process completed');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="card max-w-md w-full animate-scale-in">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
+      <div className="card max-w-md w-full animate-scale-in border border-slate-200 shadow-sm bg-white p-8">
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-6 transition-colors"
+          className="flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-6 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
           חזרה לדף הבית
         </button>
 
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+          <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4 border border-slate-200">
             {step === 'phone' ? (
-              <Phone className="w-8 h-8 text-white" />
+              <Phone className="w-5 h-5 text-slate-900" />
             ) : (
-              <Shield className="w-8 h-8 text-white" />
+              <Shield className="w-5 h-5 text-slate-900" />
             )}
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          <h2 className="text-xl font-bold text-slate-900 mb-2">
             {step === 'phone' ? 'התחברות' : 'אימות קוד'}
           </h2>
-          <p className="text-gray-600">
+          <p className="text-sm text-slate-500">
             {step === 'phone' 
               ? 'הכנס מספר טלפון לקבלת קוד אימות'
-              : 'הכנס את הקוד שנשלח לטלפון שלך'
+              : 'הכנס את קוד האימות שקיבלת'
             }
           </p>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl mb-6 flex items-center gap-2 animate-fade-in">
-            <span className="text-lg">⚠️</span>
+          <div className="bg-slate-50 border border-slate-200 text-slate-900 px-4 py-3 rounded-xl mb-6 text-sm font-medium flex items-center gap-2 animate-fade-in">
+            <span className="w-1.5 h-1.5 bg-slate-900 rounded-full"></span>
             {error}
           </div>
         )}
@@ -123,7 +114,7 @@ const AuthPage = () => {
         {step === 'phone' ? (
           <form onSubmit={handleSendCode} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">
                 מספר טלפון
               </label>
               <div className="relative">
@@ -132,27 +123,27 @@ const AuthPage = () => {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="0500000000"
-                  className="input-field text-left pr-12"
+                  className="input-field text-left pr-12 focus:ring-slate-900 border-slate-200"
                   dir="ltr"
                   required
                 />
-                <Phone className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Phone className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               </div>
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
+              className="btn-primary w-full flex items-center justify-center gap-2 py-3"
             >
               {loading ? (
                 <>
-                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <RefreshCw className="w-4 h-4 animate-spin" />
                   שולח...
                 </>
               ) : (
                 <>
                   שלח קוד אימות
-                  <ArrowLeft className="w-5 h-5 rotate-180" />
+                  <ArrowLeft className="w-4 h-4 rotate-180" />
                 </>
               )}
             </button>
@@ -160,7 +151,7 @@ const AuthPage = () => {
         ) : (
           <form onSubmit={handleVerifyCode} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">
                 קוד אימות
               </label>
               <div className="relative">
@@ -168,34 +159,34 @@ const AuthPage = () => {
                   type="text"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="הכנס קוד 6 ספרות"
-                  className="input-field text-center text-3xl tracking-[0.5em] font-mono"
+                  placeholder="הזן קוד"
+                  className="input-field text-center text-xl tracking-[0.25em] font-mono pr-12 focus:ring-slate-900 border-slate-200"
                   maxLength={6}
                   required
                 />
-                <Shield className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Shield className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               </div>
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
+              className="btn-primary w-full flex items-center justify-center gap-2 py-3"
             >
               {loading ? (
                 <>
-                  <RefreshCw className="w-5 h-5 animate-spin" />
+                  <RefreshCw className="w-4 h-4 animate-spin" />
                   מאמת...
                 </>
               ) : (
                 <>
                   אמת קוד
-                  <CheckCircle2 className="w-5 h-5" />
+                  <CheckCircle2 className="w-4 h-4" />
                 </>
               )}
             </button>
             {countdown > 0 ? (
-              <p className="text-center text-sm text-gray-500 animate-pulse">
-                שלח קוד חדש בעוד {countdown} שניות
+              <p className="text-center text-xs text-slate-500">
+                ניתן לשלוח קוד חדש בעוד {countdown} שניות
               </p>
             ) : (
               <button
@@ -204,9 +195,9 @@ const AuthPage = () => {
                   setStep('phone');
                   setCode('');
                 }}
-                className="w-full text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                className="w-full text-slate-700 hover:text-slate-900 text-xs font-bold flex items-center justify-center gap-2 transition-colors py-2"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="w-3.5 h-3.5" />
                 שלח קוד חדש
               </button>
             )}
