@@ -31,9 +31,32 @@ export const createExam = async (req: Request, res: Response) => {
       },
       include: {
         questions: true,
-        tokens: true,
+        tokens: { orderBy: { id: 'desc' } },
         rewardRules: { orderBy: { minScore: 'desc' } },
         benefits: true,
+        allowedBenefits: {
+          include: {
+            benefit: {
+              select: {
+                id: true,
+                title: true,
+                costPoints: true,
+              },
+            },
+          },
+        },
+        sessions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                phone: true,
+              },
+            },
+          },
+          orderBy: { startedAt: 'desc' },
+        },
         studyProgram: true,
       },
     });
@@ -85,9 +108,32 @@ export const getAllExams = async (_req: Request, res: Response) => {
     const exams = await prisma.exam.findMany({
       include: {
         questions: true,
-        tokens: true,
+        tokens: { orderBy: { id: 'desc' } },
         rewardRules: { orderBy: { minScore: 'desc' } },
         benefits: true,
+        allowedBenefits: {
+          include: {
+            benefit: {
+              select: {
+                id: true,
+                title: true,
+                costPoints: true,
+              },
+            },
+          },
+        },
+        sessions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                phone: true,
+              },
+            },
+          },
+          orderBy: { startedAt: 'desc' },
+        },
         studyProgram: true,
       },
     });
@@ -131,9 +177,32 @@ export const updateExam = async (req: Request, res: Response) => {
       },
       include: {
         questions: true,
-        tokens: true,
+        tokens: { orderBy: { id: 'desc' } },
         rewardRules: { orderBy: { minScore: 'desc' } },
         benefits: true,
+        allowedBenefits: {
+          include: {
+            benefit: {
+              select: {
+                id: true,
+                title: true,
+                costPoints: true,
+              },
+            },
+          },
+        },
+        sessions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                phone: true,
+              },
+            },
+          },
+          orderBy: { startedAt: 'desc' },
+        },
         studyProgram: true,
       },
     });
@@ -318,5 +387,73 @@ export const downloadAllQRCodes = async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Error downloading all QR codes', { error: error.message });
     return res.status(500).json({ error: 'Failed to download all QR codes' });
+  }
+};
+
+export const updateExamAllowedBenefits = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { benefitIds } = req.body;
+
+    if (!Array.isArray(benefitIds)) {
+      return res.status(400).json({ error: 'benefitIds must be an array' });
+    }
+
+    // Delete all existing allowed benefits for this exam
+    await prisma.examAllowedBenefit.deleteMany({
+      where: { examId: id },
+    });
+
+    // Create new allowed benefits
+    if (benefitIds.length > 0) {
+      await prisma.examAllowedBenefit.createMany({
+        data: benefitIds.map((benefitId: string) => ({
+          examId: id,
+          benefitId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Fetch updated exam with all relations
+    const exam = await prisma.exam.findUnique({
+      where: { id },
+      include: {
+        questions: true,
+        tokens: { orderBy: { id: 'desc' } },
+        rewardRules: { orderBy: { minScore: 'desc' } },
+        benefits: true,
+        allowedBenefits: {
+          include: {
+            benefit: {
+              select: {
+                id: true,
+                title: true,
+                costPoints: true,
+              },
+            },
+          },
+        },
+        sessions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                phone: true,
+              },
+            },
+          },
+          orderBy: { startedAt: 'desc' },
+        },
+        studyProgram: true,
+      },
+    });
+
+    logger.info('Exam allowed benefits updated successfully', { examId: id, benefitIds });
+    return res.json(exam);
+  } catch (error: any) {
+    logger.error('Error updating exam allowed benefits', { error: error.message });
+    return res.status(500).json({ error: 'Failed to update exam allowed benefits' });
   }
 };

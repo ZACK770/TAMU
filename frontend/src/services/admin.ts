@@ -38,6 +38,17 @@ export interface Exam {
   tokens?: ExamToken[];
   rewardRules?: ExamRewardRule[];
   benefits?: ExamBenefit[];
+  allowedBenefits?: Array<{ id: string; benefitId: string; benefit: { id: string; title: string; costPoints: number } }>;
+  sessions?: Array<{
+    id: string;
+    userId: string;
+    score?: number;
+    earnedPoints: number;
+    isCompleted: boolean;
+    startedAt: string;
+    completedAt?: string;
+    user?: { fullName?: string; phone: string };
+  }>;
 }
 
 export const adminService = {
@@ -52,8 +63,13 @@ export const adminService = {
     return response.data;
   },
 
-  updateExam: async (id: string, data: { isRandom?: boolean; studyProgramId?: string | null; rewardRules?: ExamRewardRule[]; benefits?: ExamBenefit[] }): Promise<Exam> => {
+  updateExam: async (id: string, data: { isRandom?: boolean; studyProgramId?: string | null; rewardRules?: ExamRewardRule[]; benefits?: ExamBenefit[]; allowedBenefitIds?: string[] }): Promise<Exam> => {
     const response = await api.patch(`/api/admin/exams/${id}`, data);
+    return response.data;
+  },
+
+  updateExamAllowedBenefits: async (examId: string, benefitIds: string[]): Promise<Exam> => {
+    const response = await api.patch(`/api/admin/exams/${examId}/allowed-benefits`, { benefitIds });
     return response.data;
   },
 

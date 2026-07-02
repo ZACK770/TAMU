@@ -287,7 +287,7 @@ const HomePage = () => {
                     אין שיעורי מולטימדיה זמינים כעת
                   </div>
                 ) : (
-                  {Array.isArray(filteredLessons) && filteredLessons.filter(l => l.videoUrl || l.audioUrl).map((lesson) => (
+                  Array.isArray(filteredLessons) && filteredLessons.filter(l => l.videoUrl || l.audioUrl).map((lesson) => (
                     <div key={lesson.id} className="group card-hover p-5 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                       <div className="flex items-start gap-4 text-right">
                         <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-slate-900 group-hover:text-white transition-colors duration-300">

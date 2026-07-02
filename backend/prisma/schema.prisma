@@ -30,6 +30,7 @@ model Exam {
   sessions       ExamSession[]
   tokens         ExamToken[]
   questions      Question[]
+  allowedBenefits ExamAllowedBenefit[]
 }
 
 model Question {
@@ -159,4 +160,17 @@ model Benefit {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   redemptions UserRedemption[]
+  examAllowedBenefits ExamAllowedBenefit[]
+}
+
+model ExamAllowedBenefit {
+  id        String   @id @default(uuid())
+  examId    String
+  benefitId String
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  benefit   Benefit  @relation(fields: [benefitId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, benefitId])
+  @@index([examId])
+  @@index([benefitId])
 }

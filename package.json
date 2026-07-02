@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "npm run build:frontend && cd backend && npm run dev",
     "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
-    "build": "npm run install:all && npm run build:frontend && npm run build:backend",
+    "pre-build": "node scripts/pre-build-check.mjs",
+    "build": "npm run pre-build && npm run install:all && npm run build:frontend && npm run build:backend",
     "clean:frontend": "node scripts/clean-frontend-dist.mjs",
     "build:frontend": "npm run clean:frontend && cd frontend && npm run build && cd .. && npm run validate:frontend",
     "validate:frontend": "node scripts/validate-frontend-dist.mjs",

@@ -20,6 +20,7 @@ const AdminPage = () => {
   const [adminPassword, setAdminPassword] = useState('');
   const [adminLoginError, setAdminLoginError] = useState('');
   const [systemMessage, setSystemMessage] = useState('');
+  
   const [newExamTitle, setNewExamTitle] = useState('');
   const [newExamStudyProgramId, setNewExamStudyProgramId] = useState('');
   const [bulkTokenCount, setBulkTokenCount] = useState(1);
@@ -43,9 +44,9 @@ const AdminPage = () => {
     audioUrl: '',
     order: 0,
     studyProgramId: '',
-    parasha: '',
     weekDate: '',
   });
+  
   const [newMaterial, setNewMaterial] = useState({
     title: '',
     fileUrl: '',
@@ -71,8 +72,41 @@ const AdminPage = () => {
 
   // Tab navigation
   const [activeTab, setActiveTab] = useState<'exams' | 'lessons' | 'benefits' | 'redemptions'>('exams');
+  
+  // Exam sub-tabs
+  const [examSubTab, setExamSubTab] = useState<'management' | 'tokens' | 'scores'>('management');
+  
+  // Token filters
+  const [tokenFilter, setTokenFilter] = useState<'all' | 'used' | 'unused'>('all');
+  const [tokenSort, setTokenSort] = useState<'created' | 'used'>('created');
+  
+  // Benefit search
+  const [benefitSearch, setBenefitSearch] = useState('');
 
-  // Load exams from backend on mount
+  const refreshStudyPrograms = async () => {
+    const programs = await materialsService.getStudyPrograms();
+    setStudyPrograms(programs);
+  };
+
+  const loadBenefits = async () => {
+    try {
+      const data = await benefitsService.getAll();
+      setBenefits(data);
+    } catch (error) {
+      console.error('Failed to load benefits:', error);
+    }
+  };
+
+  const loadRedemptions = async () => {
+    try {
+      const data = await redemptionsService.getAllRedemptions();
+      setRedemptions(data);
+    } catch (error) {
+      console.error('Failed to load redemptions:', error);
+    }
+  };
+
+  // Load data from backend on mount
   useEffect(() => {
     if (!isAdminAuthenticated) return;
 
@@ -96,6 +130,7 @@ const AdminPage = () => {
         console.error('Failed to load lessons:', error);
       }
     };
+    
     loadLessons();
     refreshStudyPrograms();
     loadBenefits();
@@ -131,9 +166,10 @@ const AdminPage = () => {
       setNewExamTitle('');
       setNewExamStudyProgramId('');
       setShowCreateModal(false);
+      setSystemMessage('המבחן נוצר בהצלחה');
     } catch (error) {
       console.error('Failed to create exam:', error);
-      alert('נכשל ביצירת מבחן');
+      setSystemMessage('נכשל ביצירת מבחן');
     }
   };
 
@@ -154,9 +190,10 @@ const AdminPage = () => {
         answers: ['', '', '', ''],
         correctIdx: 0,
       });
+      setSystemMessage('שאלה נוספה בהצלחה');
     } catch (error) {
       console.error('Failed to add question:', error);
-      alert('נכשל בהוספת שאלה');
+      setSystemMessage('נכשל בהוספת שאלה');
     }
   };
 
@@ -172,9 +209,10 @@ const AdminPage = () => {
 
       setExams(Array.isArray(exams) ? exams.map(e => e.id === selectedExam.id ? updatedExam : e) : []);
       setSelectedExam(updatedExam);
+      setSystemMessage('שאלה נמחקה בהצלחה');
     } catch (error) {
       console.error('Failed to delete question:', error);
-      alert('נכשל במחיקת שאלה');
+      setSystemMessage('נכשל במחיקת שאלה');
     }
   };
 
@@ -185,9 +223,10 @@ const AdminPage = () => {
       if (selectedExam?.id === examId) {
         setSelectedExam(null);
       }
+      setSystemMessage('מבחן נמחק בהצלחה');
     } catch (error) {
       console.error('Failed to delete exam:', error);
-      alert('נכשל במחיקת מבחן');
+      setSystemMessage('נכשל במחיקת מבחן');
     }
   };
 
@@ -195,29 +234,6 @@ const AdminPage = () => {
     authService.logout();
     setIsAdminAuthenticated(false);
     navigate('/');
-  };
-
-  const refreshStudyPrograms = async () => {
-    const programs = await materialsService.getStudyPrograms();
-    setStudyPrograms(programs);
-  };
-
-  const loadBenefits = async () => {
-    try {
-      const data = await benefitsService.getAll();
-      setBenefits(data);
-    } catch (error) {
-      console.error('Failed to load benefits:', error);
-    }
-  };
-
-  const loadRedemptions = async () => {
-    try {
-      const data = await redemptionsService.getAllRedemptions();
-      setRedemptions(data);
-    } catch (error) {
-      console.error('Failed to load redemptions:', error);
-    }
   };
 
   const handleCreateStudyProgram = async () => {
@@ -253,7 +269,7 @@ const AdminPage = () => {
     try {
       const lesson = await materialsService.createLesson(newLesson);
       setLessons([...lessons, lesson]);
-      setNewLesson({ title: '', description: '', videoUrl: '', audioUrl: '', order: 0, studyProgramId: '', parasha: '', weekDate: '' });
+      setNewLesson({ title: '', description: '', videoUrl: '', audioUrl: '', order: 0, studyProgramId: '', weekDate: '' });
       setShowLessonModal(false);
       setSystemMessage('שיעור חדש נוצר בהצלחה');
     } catch (error) {
@@ -488,6 +504,16 @@ const AdminPage = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {systemMessage && (
+          <div className="mb-6 rounded-xl bg-slate-900 text-white px-4 py-3 text-sm flex justify-between items-center">
+            <span>{systemMessage}</span>
+            <button onClick={() => setSystemMessage('')} className="text-gray-300 hover:text-white">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         <div className="card mb-8">
           <h2 className="text-xl font-bold mb-4">תכניות לימוד</h2>
           <div className="flex gap-2 mb-4">
@@ -507,383 +533,607 @@ const AdminPage = () => {
           </div>
         </div>
 
+        {}
         {activeTab === 'exams' ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Exams List */}
             <div className="lg:col-span-1">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">מבחנים</h2>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="btn-primary p-2"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {Array.isArray(exams) && exams.map((exam) => (
-                <div
-                  key={exam.id}
-                  className={`card-hover cursor-pointer transition-all duration-200 ${
-                    selectedExam?.id === exam.id
-                      ? 'ring-2 ring-slate-900 bg-slate-50'
-                      : ''
-                  }`}
-                  onClick={() => setSelectedExam(exam)}
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold">מבחנים</h2>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="btn-primary p-2"
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold">{exam.title}</h3>
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {Array.isArray(exams) && exams.map((exam) => (
+                  <div
+                    key={exam.id}
+                    className={`card-hover cursor-pointer transition-all duration-200 ${
+                      selectedExam?.id === exam.id
+                        ? 'ring-2 ring-slate-900 bg-slate-50'
+                        : ''
+                    }`}
+                    onClick={() => setSelectedExam(exam)}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-semibold">{exam.title}</h3>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteExam(exam.id);
+                        }}
+                        className="text-slate-600 hover:text-slate-900 p-1 hover:bg-slate-100 rounded transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-500">{Array.isArray(exam.questions) ? exam.questions.length : 0} שאלות</p>
+                    {exam.isRandom && (
+                      <span className="inline-block mt-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                        מעורבב
+                      </span>
+                    )}
+                  </div>
+                ))}
+
+                {(!Array.isArray(exams) || exams.length === 0) && (
+                  <div className="card text-center py-8">
+                    <p className="text-gray-500 mb-4">אין מבחנים עדיין</p>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteExam(exam.id);
-                      }}
-                      className="text-slate-600 hover:text-slate-900 p-1 hover:bg-slate-100 rounded transition-colors"
+                      onClick={() => setShowCreateModal(true)}
+                      className="btn-primary"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      צור מבחן חדש
                     </button>
                   </div>
-                  <p className="text-sm text-gray-500">{Array.isArray(exam.questions) ? exam.questions.length : 0} שאלות</p>
-                  {exam.isRandom && (
-                    <span className="inline-block mt-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
-                      מעורבב
-                    </span>
+                )}
+              </div>
+            </div>
+
+            {}
+            {/* Exam Details */}
+            <div className="lg:col-span-2">
+              {selectedExam ? (
+                <div className="space-y-6">
+                  <div className="card">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-2xl font-bold">{selectedExam.title}</h2>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedExam.isRandom}
+                          onChange={async (e) => {
+                            try {
+                              const updatedExam = await adminService.updateExam(selectedExam.id, { isRandom: e.target.checked });
+                              setExams(exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
+                              setSelectedExam(updatedExam);
+                            } catch (error) {
+                              console.error('Failed to update exam:', error);
+                              setSystemMessage('נכשל בעדכון מבחן');
+                            }
+                          }}
+                          className="w-4 h-4 text-slate-900 rounded"
+                        />
+                        <span className="text-sm">מעורבב</span>
+                      </label>
+                    </div>
+
+                    {/* Exam Sub-tabs */}
+                    <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
+                      <button
+                        onClick={() => setExamSubTab('management')}
+                        className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                          examSubTab === 'management' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        ניהול מבחן
+                      </button>
+                      <button
+                        onClick={() => setExamSubTab('tokens')}
+                        className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                          examSubTab === 'tokens' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        ניהול טוקנים
+                      </button>
+                      <button
+                        onClick={() => setExamSubTab('scores')}
+                        className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                          examSubTab === 'scores' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        ניהול ניקוד
+                      </button>
+                    </div>
+
+                    {/* Management Tab */}
+                    {examSubTab === 'management' && (
+                      <div className="space-y-6">
+                        <div className="bg-slate-50 rounded-xl p-4 space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">שיוך לתכנית לימוד</label>
+                            <select
+                              value={selectedExam.studyProgramId || ''}
+                              onChange={async (e) => {
+                                const updatedExam = await adminService.updateExam(selectedExam.id, { studyProgramId: e.target.value || null });
+                                setExams(Array.isArray(exams) ? exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex) : []);
+                                setSelectedExam(updatedExam);
+                              }}
+                              className="input-field"
+                            >
+                              <option value="">ללא תכנית</option>
+                              {Array.isArray(studyPrograms) && studyPrograms.map((program) => <option key={program.id} value={program.id}>{program.title}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <h3 className="font-semibold mb-3">מדרגות ניקוד</h3>
+                            <div className="space-y-2">
+                              {Array.isArray(selectedExam.rewardRules) && selectedExam.rewardRules.map((rule, idx) => (
+                                <div key={idx} className="grid grid-cols-3 gap-2">
+                                  <input type="number" value={rule.minScore} onChange={(e) => {
+                                    const rewardRules = [...(selectedExam.rewardRules || [])];
+                                    rewardRules[idx] = { ...rule, minScore: Number(e.target.value) };
+                                    setSelectedExam({ ...selectedExam, rewardRules });
+                                  }} className="input-field" placeholder="מציון" />
+                                  <input type="number" value={rule.points} onChange={(e) => {
+                                    const rewardRules = [...(selectedExam.rewardRules || [])];
+                                    rewardRules[idx] = { ...rule, points: Number(e.target.value) };
+                                    setSelectedExam({ ...selectedExam, rewardRules });
+                                  }} className="input-field" placeholder="נקודות" />
+                                  <button onClick={() => handleUpdateExamRewards((selectedExam.rewardRules || []).filter((_, ruleIdx) => ruleIdx !== idx))} className="btn-secondary">מחק</button>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex gap-2 mt-3">
+                              <button onClick={() => setSelectedExam({ ...selectedExam, rewardRules: [...(selectedExam.rewardRules || []), { minScore: 80, points: 10 }] })} className="btn-secondary">הוסף מדרגה</button>
+                              <button onClick={() => handleUpdateExamRewards()} className="btn-primary">שמור ניקוד</button>
+                            </div>
+                          </div>
+                          <div>
+                            <h3 className="font-semibold mb-3">הטבות למימוש</h3>
+                            <div className="space-y-2">
+                              {Array.isArray(selectedExam.benefits) && selectedExam.benefits.map((benefit, idx) => (
+                                <div key={idx} className="grid grid-cols-4 gap-2">
+                                  <input value={benefit.title} onChange={(e) => {
+                                    const benefits = [...(selectedExam.benefits || [])];
+                                    benefits[idx] = { ...benefit, title: e.target.value };
+                                    setSelectedExam({ ...selectedExam, benefits });
+                                  }} className="input-field" placeholder="שם הטבה" />
+                                  <input value={benefit.description || ''} onChange={(e) => {
+                                    const benefits = [...(selectedExam.benefits || [])];
+                                    benefits[idx] = { ...benefit, description: e.target.value };
+                                    setSelectedExam({ ...selectedExam, benefits });
+                                  }} className="input-field" placeholder="תיאור" />
+                                  <input type="number" value={benefit.costPoints} onChange={(e) => {
+                                    const benefits = [...(selectedExam.benefits || [])];
+                                    benefits[idx] = { ...benefit, costPoints: Number(e.target.value) };
+                                    setSelectedExam({ ...selectedExam, benefits });
+                                  }} className="input-field" placeholder="עלות" />
+                                  <button onClick={() => handleUpdateExamRewards(undefined, (selectedExam.benefits || []).filter((_, benefitIdx) => benefitIdx !== idx))} className="btn-secondary">מחק</button>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex gap-2 mt-3">
+                              <button onClick={() => setSelectedExam({ ...selectedExam, benefits: [...(selectedExam.benefits || []), { title: '', description: '', costPoints: 10 }] })} className="btn-secondary">הוסף הטבה</button>
+                              <button onClick={() => handleUpdateExamRewards()} className="btn-primary">שמור הטבות</button>
+                            </div>
+                          </div>
+                          <div>
+                            <h3 className="font-semibold mb-3">הטבות מותרות למימוש</h3>
+                            <div className="mb-3">
+                              <input
+                                type="text"
+                                value={benefitSearch}
+                                onChange={(e) => setBenefitSearch(e.target.value)}
+                                placeholder="חפש הטבה..."
+                                className="input-field w-full"
+                              />
+                            </div>
+                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                              {Array.isArray(benefits) && benefits
+                                .filter(b => !benefitSearch || b.title.toLowerCase().includes(benefitSearch.toLowerCase()))
+                                .map((benefit) => {
+                                  const isAllowed = selectedExam.allowedBenefits?.some(ab => ab.benefitId === benefit.id);
+                                  return (
+                                    <div key={benefit.id} className="flex items-center gap-2 p-2 bg-white rounded-lg">
+                                      <input
+                                        type="checkbox"
+                                        checked={isAllowed}
+                                        onChange={async () => {
+                                          const currentAllowedIds = selectedExam.allowedBenefits?.map(ab => ab.benefitId) || [];
+                                          const newAllowedIds = isAllowed
+                                            ? currentAllowedIds.filter(id => id !== benefit.id)
+                                            : [...currentAllowedIds, benefit.id];
+                                          try {
+                                            const updatedExam = await adminService.updateExamAllowedBenefits(selectedExam.id, newAllowedIds);
+                                            setExams(Array.isArray(exams) ? exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex) : []);
+                                            setSelectedExam(updatedExam);
+                                          } catch (error) {
+                                            console.error('Failed to update allowed benefits:', error);
+                                            setSystemMessage('נכשל בעדכון הטבות מותרות');
+                                          }
+                                        }}
+                                        className="w-4 h-4 text-slate-900 rounded"
+                                      />
+                                      <div className="flex-1">
+                                        <span className="font-medium">{benefit.title}</span>
+                                        <span className="text-sm text-gray-500 mr-2">({benefit.costPoints} נקודות)</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">השאר ריק כדי לאפשר את כל ההטבות</p>
+                          </div>
+                        </div>
+
+                        {/* Add Question */}
+                        <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                          <h3 className="font-semibold mb-4">הוסף שאלה</h3>
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                טקסט השאלה
+                              </label>
+                              <input
+                                type="text"
+                                value={newQuestion.text}
+                                onChange={(e) =>
+                                  setNewQuestion({ ...newQuestion, text: e.target.value })
+                                }
+                                placeholder="הכנס שאלה"
+                                className="input-field"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                תשובות
+                              </label>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {Array.isArray(newQuestion.answers) && newQuestion.answers.map((answer, idx) => (
+                                  <div key={idx} className="relative">
+                                    <input
+                                      type="text"
+                                      value={answer}
+                                      onChange={(e) => {
+                                        const newAnswers = [...newQuestion.answers];
+                                        newAnswers[idx] = e.target.value;
+                                        setNewQuestion({ ...newQuestion, answers: newAnswers });
+                                      }}
+                                      placeholder={`תשובה ${idx + 1}`}
+                                      className="input-field pr-10"
+                                    />
+                                    {newQuestion.correctIdx === idx && (
+                                      <CheckCircle className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900 w-5 h-5" />
+                                    )}
+                                    <button
+                                      onClick={() =>
+                                        setNewQuestion({ ...newQuestion, correctIdx: idx })
+                                      }
+                                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-slate-900 transition-colors"
+                                      title="סמן כתשובה נכונה"
+                                    >
+                                      <Circle className="w-5 h-5" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <button
+                              onClick={handleAddQuestion}
+                              className="btn-primary w-full flex items-center justify-center gap-2"
+                            >
+                              <Plus className="w-5 h-5" />
+                              הוסף שאלה
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Questions List */}
+                        <div>
+                          <h3 className="font-semibold mb-4">שאלות ({Array.isArray(selectedExam.questions) ? selectedExam.questions.length : 0})</h3>
+                          {(!Array.isArray(selectedExam.questions) || selectedExam.questions.length === 0) ? (
+                            <p className="text-gray-500 text-center py-8">אין שאלות עדיין</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {Array.isArray(selectedExam.questions) && selectedExam.questions.map((question, idx) => (
+                                <div key={question.id} className="bg-gray-50 rounded-xl p-4">
+                                  <div className="flex justify-between items-start mb-2">
+                                    <span className="text-sm text-gray-500">שאלה {idx + 1}</span>
+                                    <button
+                                      onClick={() => question.id && handleDeleteQuestion(question.id)}
+                                      className="text-slate-600 hover:text-slate-900 p-1 hover:bg-slate-100 rounded transition-colors"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                  <p className="font-medium mb-2">{question.text}</p>
+                                  <div className="grid grid-cols-2 gap-2 text-sm">
+                                    {Array.isArray(question.answers) && question.answers.map((answer, aIdx) => (
+                                      <div
+                                        key={aIdx}
+                                        className={`p-2 rounded ${
+                                          question.correctIdx === aIdx
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-white'
+                                        }`}
+                                      >
+                                        {aIdx + 1}. {answer}
+                                        {question.correctIdx === aIdx && ' ✓'}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div> {/* Ends card wrapper */}
+
+                  {}
+                  {/* Tokens Tab */}
+                  {examSubTab === 'tokens' && (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-bold">טוקנים למבחן</h3>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={bulkTokenCount}
+                            onChange={(e) => setBulkTokenCount(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
+                            className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center"
+                          />
+                          <button
+                            onClick={async () => {
+                              try {
+                                const tokens = await adminService.createBulkTokens({ examId: selectedExam.id, count: bulkTokenCount });
+                                const updatedExam = {
+                                  ...selectedExam,
+                                  tokens: [...(Array.isArray(selectedExam.tokens) ? selectedExam.tokens : []), ...tokens],
+                                };
+                                setExams(Array.isArray(exams) ? exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex) : []);
+                                setSelectedExam(updatedExam);
+                                setSystemMessage(`נוצרו ${bulkTokenCount} טוקנים חדשים`);
+                              } catch (error) {
+                                console.error('Failed to create bulk tokens:', error);
+                                setSystemMessage('נכשל ביצירת טוקנים');
+                              }
+                            }}
+                            className="btn-primary flex items-center justify-center gap-2"
+                          >
+                            <Plus className="w-5 h-5" />
+                            צור טוקנים
+                          </button>
+                          {Array.isArray(selectedExam.tokens) && selectedExam.tokens.length > 0 && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await adminService.downloadAllQRCodes(selectedExam.id, selectedExam.title);
+                                  setSystemMessage('הורדת כל ה-QR codes התחילה');
+                                } catch (error) {
+                                  console.error('Failed to download all QR codes:', error);
+                                  setSystemMessage('נכשל בהורדת QR codes');
+                                }
+                              }}
+                              className="btn-secondary flex items-center justify-center gap-2"
+                              title="הורד את כל קודי ה-QR"
+                            >
+                              <DownloadIcon className="w-5 h-5" />
+                              הורד הכל
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Token Filters */}
+                      <div className="flex gap-2 mb-4">
+                        <button
+                          onClick={() => setTokenFilter('all')}
+                          className={`px-3 py-1 rounded-md text-sm ${tokenFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-gray-100 text-slate-600'}`}
+                        >
+                          הכל
+                        </button>
+                        <button
+                          onClick={() => setTokenFilter('used')}
+                          className={`px-3 py-1 rounded-md text-sm ${tokenFilter === 'used' ? 'bg-slate-900 text-white' : 'bg-gray-100 text-slate-600'}`}
+                        >
+                          נוצלו
+                        </button>
+                        <button
+                          onClick={() => setTokenFilter('unused')}
+                          className={`px-3 py-1 rounded-md text-sm ${tokenFilter === 'unused' ? 'bg-slate-900 text-white' : 'bg-gray-100 text-slate-600'}`}
+                        >
+                          זמינים
+                        </button>
+                        <select
+                          value={tokenSort}
+                          onChange={(e) => setTokenSort(e.target.value as 'created' | 'used')}
+                          className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="created">מיון לפי יצירה</option>
+                          <option value="used">מיון לפי ניצול</option>
+                        </select>
+                      </div>
+
+                      {/* Cost Statistics */}
+                      <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div className="bg-blue-50 rounded-xl p-4">
+                          <h4 className="font-semibold text-blue-900 mb-2">עלות פוטנציאלית</h4>
+                          <p className="text-2xl font-bold text-blue-900">
+                            {(selectedExam.tokens || []).length * (selectedExam.rewardRules?.reduce((sum, r) => Math.max(sum, r.points), 0) || 0)} נקודות
+                          </p>
+                          <p className="text-sm text-blue-700">על סמך כל הטוקנים שהונפקו</p>
+                        </div>
+                        <div className="bg-green-50 rounded-xl p-4">
+                          <h4 className="font-semibold text-green-900 mb-2">עלות בפועל</h4>
+                          <p className="text-2xl font-bold text-green-900">
+                            {(selectedExam.sessions || []).reduce((sum, s) => sum + (s.earnedPoints || 0), 0)} נקודות
+                          </p>
+                          <p className="text-sm text-green-700">על סמך ניקוד שניתן בפועל</p>
+                        </div>
+                      </div>
+
+                      {/* Token Table */}
+                      <div className="space-y-2">
+                        {(!Array.isArray(selectedExam.tokens) || selectedExam.tokens.length === 0) ? (
+                          <p className="text-sm text-gray-500 text-center py-4">אין טוקנים למבחן הזה עדיין</p>
+                        ) : (
+                          (() => {
+                            let filteredTokens = Array.isArray(selectedExam.tokens) ? [...selectedExam.tokens] : [];
+                            
+                            // Apply filter
+                            if (tokenFilter === 'used') {
+                              filteredTokens = filteredTokens.filter(t => t.isUsed);
+                            } else if (tokenFilter === 'unused') {
+                              filteredTokens = filteredTokens.filter(t => !t.isUsed);
+                            }
+                            
+                            // Apply sort
+                            if (tokenSort === 'used') {
+                              filteredTokens.sort((a, b) => {
+                                if (!a.usedAt && !b.usedAt) return 0;
+                                if (!a.usedAt) return 1;
+                                if (!b.usedAt) return -1;
+                                return new Date(b.usedAt).getTime() - new Date(a.usedAt).getTime();
+                              });
+                            } else {
+                              filteredTokens.sort((a, b) => b.id.localeCompare(a.id));
+                            }
+                            
+                            return filteredTokens.map((token) => (
+                              <div key={token.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
+                                <div className="flex items-center gap-4">
+                                  <QRCodeCanvas value={buildExamUrl(token.tokenCode)} size={60} level="H" />
+                                  <div>
+                                    <div className="font-mono text-lg font-bold tracking-wider">{token.tokenCode}</div>
+                                    <div className="text-xs text-gray-500">
+                                      {token.usedAt ? `נוצל בתאריך ${new Date(token.usedAt).toLocaleString('he-IL')}` : 'עדיין לא נוצל'}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs px-3 py-1 rounded-full ${token.isUsed ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                    {token.isUsed ? 'נוצל' : 'זמין'}
+                                  </span>
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await adminService.downloadTokenQR(token.id);
+                                        setSystemMessage(`הורדת QR עבור טוקן ${token.tokenCode}`);
+                                      } catch (error) {
+                                        console.error('Failed to download QR:', error);
+                                        setSystemMessage('נכשל בהורדת QR');
+                                      }
+                                    }}
+                                    className="text-slate-900 hover:text-slate-900 p-2 hover:bg-slate-50 rounded-lg transition-colors"
+                                    title="הורד QR code"
+                                  >
+                                    <Download className="w-5 h-5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ));
+                          })()
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {}
+                  {/* Scores Tab */}
+                  {examSubTab === 'scores' && (
+                    <div className="space-y-4">
+                      <h3 className="text-xl font-bold">ניקוד וסטטיסטיקות</h3>
+                      
+                      {/* Score Statistics */}
+                      <div className="grid grid-cols-3 gap-4 mb-4">
+                        <div className="bg-purple-50 rounded-xl p-4">
+                          <h4 className="font-semibold text-purple-900 mb-2">סה"כ ניסיונות</h4>
+                          <p className="text-2xl font-bold text-purple-900">
+                            {(selectedExam.sessions || []).length}
+                          </p>
+                        </div>
+                        <div className="bg-yellow-50 rounded-xl p-4">
+                          <h4 className="font-semibold text-yellow-900 mb-2">ציון ממוצע</h4>
+                          <p className="text-2xl font-bold text-yellow-900">
+                            {(() => {
+                              const completedSessions = (selectedExam.sessions || []).filter(s => s.isCompleted && s.score !== undefined);
+                              if (completedSessions.length === 0) return '-';
+                              const avg = completedSessions.reduce((sum, s) => sum + (s.score || 0), 0) / completedSessions.length;
+                              return avg.toFixed(1);
+                            })()}
+                          </p>
+                        </div>
+                        <div className="bg-green-50 rounded-xl p-4">
+                          <h4 className="font-semibold text-green-900 mb-2">סה"כ נקודות שניתנו</h4>
+                          <p className="text-2xl font-bold text-green-900">
+                            {(selectedExam.sessions || []).reduce((sum, s) => sum + (s.earnedPoints || 0), 0)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Sessions Table */}
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <h4 className="font-semibold mb-4">רשימת ניסיונות</h4>
+                        {(!Array.isArray(selectedExam.sessions) || selectedExam.sessions.length === 0) ? (
+                          <p className="text-sm text-gray-500 text-center py-4">אין ניסיונות עדיין</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {selectedExam.sessions.map((session) => (
+                              <div key={session.id} className="flex items-center justify-between bg-white rounded-lg p-3">
+                                <div className="flex items-center gap-4">
+                                  <div>
+                                    <p className="font-medium">{session.user?.fullName || session.user?.phone || 'משתמש אנונימי'}</p>
+                                    <p className="text-xs text-gray-500">
+                                      התחיל: {new Date(session.startedAt).toLocaleString('he-IL')}
+                                      {session.completedAt && ` • הסתיים: ${new Date(session.completedAt).toLocaleString('he-IL')}`}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <div className="text-center">
+                                    <p className="text-sm text-gray-500">ציון</p>
+                                    <p className="font-bold text-lg">{session.score !== undefined ? session.score : '-'}</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-sm text-gray-500">נקודות</p>
+                                    <p className="font-bold text-lg text-green-600">{session.earnedPoints}</p>
+                                  </div>
+                                  <span className={`text-xs px-3 py-1 rounded-full ${session.isCompleted ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    {session.isCompleted ? 'הושלם' : 'בתהליך'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
-              ))}
-
-              {!Array.isArray(exams) || exams.length === 0 && (
-                <div className="card text-center py-8">
-                  <p className="text-gray-500 mb-4">אין מבחנים עדיין</p>
-                  <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="btn-primary"
-                  >
-                    צור מבחן חדש
-                  </button>
+              ) : (
+                <div className="card text-center py-16">
+                  <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    בחר מבחן לעריכה
+                  </h3>
+                  <p className="text-gray-500">
+                    או צור מבחן חדש כדי להתחיל
+                  </p>
                 </div>
               )}
             </div>
           </div>
-
-          {/* Exam Details */}
-          <div className="lg:col-span-2">
-            {selectedExam ? (
-              <div className="space-y-6">
-                <div className="card">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold">{selectedExam.title}</h2>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedExam.isRandom}
-                        onChange={async (e) => {
-                          try {
-                            const updatedExam = await adminService.updateExam(selectedExam.id, { isRandom: e.target.checked });
-                            setExams(exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
-                            setSelectedExam(updatedExam);
-                          } catch (error) {
-                            console.error('Failed to update exam:', error);
-                            alert('נכשל בעדכון מבחן');
-                          }
-                        }}
-                        className="w-4 h-4 text-slate-900 rounded"
-                      />
-                      <span className="text-sm">מעורבב</span>
-                    </label>
-                  </div>
-
-                  <div className="bg-slate-50 rounded-xl p-4 mb-6 space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">שיוך לתכנית לימוד</label>
-                      <select
-                        value={selectedExam.studyProgramId || ''}
-                        onChange={async (e) => {
-                          const updatedExam = await adminService.updateExam(selectedExam.id, { studyProgramId: e.target.value || null });
-                          setExams(Array.isArray(exams) ? exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex) : []);
-                          setSelectedExam(updatedExam);
-                        }}
-                        className="input-field"
-                      >
-                        <option value="">ללא תכנית</option>
-                        {Array.isArray(studyPrograms) && studyPrograms.map((program) => <option key={program.id} value={program.id}>{program.title}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold mb-3">מדרגות ניקוד</h3>
-                      <div className="space-y-2">
-                        {Array.isArray(selectedExam.rewardRules) && selectedExam.rewardRules.map((rule, idx) => (
-                          <div key={idx} className="grid grid-cols-3 gap-2">
-                            <input type="number" value={rule.minScore} onChange={(e) => {
-                              const rewardRules = [...(selectedExam.rewardRules || [])];
-                              rewardRules[idx] = { ...rule, minScore: Number(e.target.value) };
-                              setSelectedExam({ ...selectedExam, rewardRules });
-                            }} className="input-field" placeholder="מציון" />
-                            <input type="number" value={rule.points} onChange={(e) => {
-                              const rewardRules = [...(selectedExam.rewardRules || [])];
-                              rewardRules[idx] = { ...rule, points: Number(e.target.value) };
-                              setSelectedExam({ ...selectedExam, rewardRules });
-                            }} className="input-field" placeholder="נקודות" />
-                            <button onClick={() => handleUpdateExamRewards((selectedExam.rewardRules || []).filter((_, ruleIdx) => ruleIdx !== idx))} className="btn-secondary">מחק</button>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex gap-2 mt-3">
-                        <button onClick={() => setSelectedExam({ ...selectedExam, rewardRules: [...(selectedExam.rewardRules || []), { minScore: 80, points: 10 }] })} className="btn-secondary">הוסף מדרגה</button>
-                        <button onClick={() => handleUpdateExamRewards()} className="btn-primary">שמור ניקוד</button>
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold mb-3">הטבות למימוש</h3>
-                      <div className="space-y-2">
-                        {Array.isArray(selectedExam.benefits) && selectedExam.benefits.map((benefit, idx) => (
-                          <div key={idx} className="grid grid-cols-4 gap-2">
-                            <input value={benefit.title} onChange={(e) => {
-                              const benefits = [...(selectedExam.benefits || [])];
-                              benefits[idx] = { ...benefit, title: e.target.value };
-                              setSelectedExam({ ...selectedExam, benefits });
-                            }} className="input-field" placeholder="שם הטבה" />
-                            <input value={benefit.description || ''} onChange={(e) => {
-                              const benefits = [...(selectedExam.benefits || [])];
-                              benefits[idx] = { ...benefit, description: e.target.value };
-                              setSelectedExam({ ...selectedExam, benefits });
-                            }} className="input-field" placeholder="תיאור" />
-                            <input type="number" value={benefit.costPoints} onChange={(e) => {
-                              const benefits = [...(selectedExam.benefits || [])];
-                              benefits[idx] = { ...benefit, costPoints: Number(e.target.value) };
-                              setSelectedExam({ ...selectedExam, benefits });
-                            }} className="input-field" placeholder="עלות" />
-                            <button onClick={() => handleUpdateExamRewards(undefined, (selectedExam.benefits || []).filter((_, benefitIdx) => benefitIdx !== idx))} className="btn-secondary">מחק</button>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex gap-2 mt-3">
-                        <button onClick={() => setSelectedExam({ ...selectedExam, benefits: [...(selectedExam.benefits || []), { title: '', description: '', costPoints: 10 }] })} className="btn-secondary">הוסף הטבה</button>
-                        <button onClick={() => handleUpdateExamRewards()} className="btn-primary">שמור הטבות</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Add Question */}
-                  <div className="bg-gray-50 rounded-xl p-4 mb-6">
-                    <h3 className="font-semibold mb-4">הוסף שאלה</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          טקסט השאלה
-                        </label>
-                        <input
-                          type="text"
-                          value={newQuestion.text}
-                          onChange={(e) =>
-                            setNewQuestion({ ...newQuestion, text: e.target.value })
-                          }
-                          placeholder="הכנס שאלה"
-                          className="input-field"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          תשובות
-                        </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {Array.isArray(newQuestion.answers) && newQuestion.answers.map((answer, idx) => (
-                            <div key={idx} className="relative">
-                              <input
-                                type="text"
-                                value={answer}
-                                onChange={(e) => {
-                                  const newAnswers = [...newQuestion.answers];
-                                  newAnswers[idx] = e.target.value;
-                                  setNewQuestion({ ...newQuestion, answers: newAnswers });
-                                }}
-                                placeholder={`תשובה ${idx + 1}`}
-                                className="input-field pr-10"
-                              />
-                              {newQuestion.correctIdx === idx && (
-                                <CheckCircle className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-900 w-5 h-5" />
-                              )}
-                              <button
-                                onClick={() =>
-                                  setNewQuestion({ ...newQuestion, correctIdx: idx })
-                                }
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-slate-900 transition-colors"
-                                title="סמן כתשובה נכונה"
-                              >
-                                <Circle className="w-5 h-5" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <button
-                        onClick={handleAddQuestion}
-                        className="btn-primary w-full flex items-center justify-center gap-2"
-                      >
-                        <Plus className="w-5 h-5" />
-                        הוסף שאלה
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Questions List */}
-                  <div>
-                    <h3 className="font-semibold mb-4">שאלות ({Array.isArray(selectedExam.questions) ? selectedExam.questions.length : 0})</h3>
-                    {!Array.isArray(selectedExam.questions) || selectedExam.questions.length === 0 ? (
-                      <p className="text-gray-500 text-center py-8">אין שאלות עדיין</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {Array.isArray(selectedExam.questions) && selectedExam.questions.map((question, idx) => (
-                          <div key={question.id} className="bg-gray-50 rounded-xl p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <span className="text-sm text-gray-500">שאלה {idx + 1}</span>
-                              <button
-                                onClick={() => question.id && handleDeleteQuestion(question.id)}
-                                className="text-slate-600 hover:text-slate-900 p-1 hover:bg-slate-100 rounded transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                            <p className="font-medium mb-2">{question.text}</p>
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                              {Array.isArray(question.answers) && question.answers.map((answer, aIdx) => (
-                                <div
-                                  key={aIdx}
-                                  className={`p-2 rounded ${
-                                    question.correctIdx === aIdx
-                                      ? 'bg-green-100 text-green-800'
-                                      : 'bg-white'
-                                  }`}
-                                >
-                                  {aIdx + 1}. {answer}
-                                  {question.correctIdx === aIdx && ' ✓'}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Generate Tokens */}
-                <div className="card">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold">טוקנים למבחן</h3>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={bulkTokenCount}
-                        onChange={(e) => setBulkTokenCount(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
-                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center"
-                      />
-                      <button
-                        onClick={async () => {
-                          try {
-                            const tokens = await adminService.createBulkTokens({ examId: selectedExam.id, count: bulkTokenCount });
-                            const updatedExam = {
-                              ...selectedExam,
-                              tokens: [...(Array.isArray(selectedExam.tokens) ? selectedExam.tokens : []), ...tokens],
-                            };
-                            setExams(Array.isArray(exams) ? exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex) : []);
-                            setSelectedExam(updatedExam);
-                            setSystemMessage(`נוצרו ${bulkTokenCount} טוקנים חדשים`);
-                          } catch (error) {
-                            console.error('Failed to create bulk tokens:', error);
-                            setSystemMessage('נכשל ביצירת טוקנים');
-                          }
-                        }}
-                        className="btn-primary flex items-center justify-center gap-2"
-                      >
-                        <Plus className="w-5 h-5" />
-                        צור טוקנים
-                      </button>
-                      {Array.isArray(selectedExam.tokens) && selectedExam.tokens.length > 0 && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              await adminService.downloadAllQRCodes(selectedExam.id, selectedExam.title);
-                              setSystemMessage('הורדת כל ה-QR codes התחילה');
-                            } catch (error) {
-                              console.error('Failed to download all QR codes:', error);
-                              setSystemMessage('נכשל בהורדת QR codes');
-                            }
-                          }}
-                          className="btn-secondary flex items-center justify-center gap-2"
-                          title="הורד את כל קודי ה-QR"
-                        >
-                          <DownloadIcon className="w-5 h-5" />
-                          הורד הכל
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {systemMessage && (
-                    <div className="mb-4 rounded-xl bg-slate-50 text-slate-900 px-4 py-3 text-sm">
-                      {systemMessage}
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    {!Array.isArray(selectedExam.tokens) || selectedExam.tokens.length === 0 ? (
-                      <p className="text-sm text-gray-500 text-center py-4">אין טוקנים למבחן הזה עדיין</p>
-                    ) : (
-                      {Array.isArray(selectedExam.tokens) && selectedExam.tokens.map((token) => (
-                        <div key={token.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-                          <div className="flex items-center gap-4">
-                            <QRCodeCanvas value={buildExamUrl(token.tokenCode)} size={60} level="H" />
-                            <div>
-                              <div className="font-mono text-lg font-bold tracking-wider">{token.tokenCode}</div>
-                              <div className="text-xs text-gray-500">
-                                {token.usedAt ? `נוצל בתאריך ${new Date(token.usedAt).toLocaleString('he-IL')}` : 'עדיין לא נוצל'}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs px-3 py-1 rounded-full ${token.isUsed ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                              {token.isUsed ? 'נוצל' : 'זמין'}
-                            </span>
-                            <button
-                              onClick={async () => {
-                                try {
-                                  await adminService.downloadTokenQR(token.id);
-                                  setSystemMessage(`הורדת QR עבור טוקן ${token.tokenCode}`);
-                                } catch (error) {
-                                  console.error('Failed to download QR:', error);
-                                  setSystemMessage('נכשל בהורדת QR');
-                                }
-                              }}
-                              className="text-slate-900 hover:text-slate-900 p-2 hover:bg-slate-50 rounded-lg transition-colors"
-                              title="הורד QR code"
-                            >
-                              <Download className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="card text-center py-16">
-                <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  בחר מבחן לעריכה
-                </h3>
-                <p className="text-gray-500">
-                  או צור מבחן חדש כדי להתחיל
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-        ) : (
+        ) : activeTab === 'lessons' ? (
+          
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Lessons List */}
             <div className="lg:col-span-1">
@@ -936,7 +1186,7 @@ const AdminPage = () => {
                   </div>
                 ))}
 
-                {!Array.isArray(lessons) || lessons.length === 0 && (
+                {(!Array.isArray(lessons) || lessons.length === 0) && (
                   <div className="card text-center py-8">
                     <p className="text-gray-500 mb-4">אין שיעורים עדיין</p>
                     <button
@@ -950,6 +1200,7 @@ const AdminPage = () => {
               </div>
             </div>
 
+            {}
             {/* Lesson Details */}
             <div className="lg:col-span-2">
               {selectedLesson ? (
@@ -997,14 +1248,20 @@ const AdminPage = () => {
 
                       <div className="flex gap-2">
                         <button
-                          onClick={() => handleUpdateLesson(selectedLesson.id, { videoUrl: prompt('הכנס קישור לוידאו:') || '' })}
+                          onClick={() => {
+                            const url = prompt('הכנס קישור לוידאו:');
+                            if(url !== null) handleUpdateLesson(selectedLesson.id, { videoUrl: url });
+                          }}
                           className="btn-secondary flex-1 flex items-center justify-center gap-2"
                         >
                           <Video className="w-4 h-4" />
                           הוסף וידאו
                         </button>
                         <button
-                          onClick={() => handleUpdateLesson(selectedLesson.id, { audioUrl: prompt('הכנס קישור לאודיו:') || '' })}
+                          onClick={() => {
+                            const url = prompt('הכנס קישור לאודיו:');
+                            if(url !== null) handleUpdateLesson(selectedLesson.id, { audioUrl: url });
+                          }}
                           className="btn-secondary flex-1 flex items-center justify-center gap-2"
                         >
                           <Music className="w-4 h-4" />
@@ -1029,7 +1286,7 @@ const AdminPage = () => {
                         </button>
                       </div>
 
-                      {!Array.isArray(selectedLesson.materials) || selectedLesson.materials.length === 0 ? (
+                      {(!Array.isArray(selectedLesson.materials) || selectedLesson.materials.length === 0) ? (
                         <p className="text-gray-500 text-center py-8">אין חומרים לשיעור הזה עדיין</p>
                       ) : (
                         <div className="space-y-3">
@@ -1084,8 +1341,9 @@ const AdminPage = () => {
               )}
             </div>
           </div>
-        )}
+        ) : null}
 
+        {}
         {activeTab === 'benefits' && (
           <div className="card">
             <div className="flex justify-between items-center mb-6">
@@ -1142,7 +1400,7 @@ const AdminPage = () => {
                 </div>
               ))}
 
-              {!Array.isArray(benefits) || benefits.length === 0 && (
+              {(!Array.isArray(benefits) || benefits.length === 0) && (
                 <div className="card text-center py-8">
                   <p className="text-gray-500 mb-4">אין הטבות עדיין</p>
                   <button
@@ -1157,6 +1415,7 @@ const AdminPage = () => {
           </div>
         )}
 
+        {}
         {activeTab === 'redemptions' && (
           <div className="card">
             <h2 className="text-xl font-bold mb-6">ניהול מימושים</h2>
@@ -1203,7 +1462,7 @@ const AdminPage = () => {
                 </div>
               ))}
 
-              {!Array.isArray(redemptions) || redemptions.length === 0 && (
+              {(!Array.isArray(redemptions) || redemptions.length === 0) && (
                 <div className="card text-center py-8">
                   <p className="text-gray-500">אין מימושים עדיין</p>
                 </div>
@@ -1213,6 +1472,7 @@ const AdminPage = () => {
         )}
       </main>
 
+      {}
       {/* Create Exam Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
@@ -1420,8 +1680,7 @@ const AdminPage = () => {
                   {Array.isArray(studyPrograms) && studyPrograms.map((program) => <option key={program.id} value={program.id}>{program.title}</option>)}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <input value={newLesson.parasha} onChange={(e) => setNewLesson({ ...newLesson, parasha: e.target.value })} placeholder="פרשת השבוע" className="input-field" />
+              <div className="grid grid-cols-1 gap-2">
                 <input type="date" value={newLesson.weekDate} onChange={(e) => setNewLesson({ ...newLesson, weekDate: e.target.value })} className="input-field" />
               </div>
               <div className="flex gap-2">
