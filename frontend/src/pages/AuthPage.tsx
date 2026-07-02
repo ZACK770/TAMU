@@ -60,13 +60,14 @@ const AuthPage = () => {
     }
   };
 
-  const handleSendCode = async (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent, forceVoiceCall?: boolean) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      if (useVoiceCall) {
+      const shouldUseVoiceCall = forceVoiceCall !== undefined ? forceVoiceCall : useVoiceCall;
+      if (shouldUseVoiceCall) {
         await authService.sendCodeVoice(phone);
       } else {
         await authService.sendCode(phone);
@@ -207,7 +208,7 @@ const AuthPage = () => {
                 type="button"
                 onClick={async () => {
                   setUseVoiceCall(true);
-                  await handleSendCode({ preventDefault: () => {} } as any);
+                  await handleSendCode({ preventDefault: () => {} } as any, true);
                 }}
                 disabled={loading}
                 className="w-full text-slate-500 hover:text-slate-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors py-2"
@@ -220,7 +221,7 @@ const AuthPage = () => {
                 type="button"
                 onClick={async () => {
                   setUseVoiceCall(false);
-                  await handleSendCode({ preventDefault: () => {} } as any);
+                  await handleSendCode({ preventDefault: () => {} } as any, false);
                 }}
                 disabled={loading}
                 className="w-full text-slate-500 hover:text-slate-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors py-2"
