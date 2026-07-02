@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { examService } from '../services/exam';
+import { benefitsService } from '../services/benefits';
+import { redemptionsService } from '../services/redemptions';
+import { statsService } from '../services/stats';
 import { useAuth } from '../hooks/useAuth';
-import { LogOut, Key, Send, Loader2, CheckCheck, User, MoreVertical, Paperclip, Smile, HelpCircle, Info } from 'lucide-react';
+import { LogOut, Key, Send, Loader2, CheckCheck, User, MoreVertical, Paperclip, Smile, HelpCircle, Info, Star, Gift } from 'lucide-react';
 
 // WhatsApp colors
 const WA_BG = 'bg-[#efe7de]';
@@ -28,6 +31,7 @@ const ExamPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [typing, setTyping] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
 
   useEffect(() => {
     console.log('[ExamPage] useEffect running');
@@ -125,6 +129,40 @@ const ExamPage = () => {
           time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
         },
       ]);
+      return;
+    }
+
+    // Handle action menu responses
+    if (answerText === 'חזרה למבחן') {
+      setMessages((prev) => [
+        ...prev,
+        { 
+          type: 'answer', 
+          content: answerText, 
+          id: Date.now(),
+          time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+        },
+      ]);
+      return;
+    }
+
+    if (answerText === 'רוצה לממש') {
+      handleActionMenuClick('redeem');
+      setMessages((prev) => [
+        ...prev,
+        { 
+          type: 'answer', 
+          content: answerText, 
+          id: Date.now(),
+          time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+        },
+      ]);
+      return;
+    }
+
+    // Handle benefit redemption
+    if (answerText.includes(' - ') && (answerText.includes('נקודות') || answerText.includes('לא זמין'))) {
+      handleBenefitRedeem(answerText);
       return;
     }
 
@@ -245,6 +283,158 @@ const ExamPage = () => {
           time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
         }
       ]);
+    }
+  };
+
+  const handleActionMenuClick = async (action: 'score' | 'redeem') => {
+    setActionMenuOpen(false);
+    
+    if (action === 'score') {
+      setLoading(true);
+      try {
+        const stats = await statsService.getMyStats();
+        const availablePoints = stats.totalPoints - stats.pointsSpent;
+        
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'question',
+            content: {
+              text: `📊 **הניקוד שלך**\n\n• נקודות שצברת: ${stats.totalPoints}\n• נקודות שממשת: ${stats.pointsSpent}\n• נקודות זמינות: ${availablePoints}\n• מספר מבחנים: ${stats.totalExams}\n• ציון ממוצע: ${stats.averageScore}%`,
+              answers: ['חזרה למבחן', 'רוצה לממש']
+            },
+            id: Date.now(),
+            time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+          }
+        ]);
+      } catch (err: any) {
+        setError('שגיאה בטעינת הניקוד');
+      } finally {
+        setLoading(false);
+      }
+    } else if (action === 'redeem') {
+      setLoading(true);
+      try {
+        const benefits = await benefitsService.getAvailable();
+        const stats = await statsService.getMyStats();
+        const availablePoints = stats.totalPoints - stats.pointsSpent;
+        
+        if (benefits.length === 0) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'question',
+              content: {
+                text: `🎁 **הטבות זמינות**\n\nכרגע אין הטבות זמינות למימוש.\n\nנקודות זמינות: ${availablePoints}`,
+                answers: ['חזרה למבחן']
+              },
+              id: Date.now(),
+              time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+            }
+          ]);
+        } else {
+          const benefitAnswers = benefits.slice(0, 5).map(b => {
+            const status = b.canRedeem ? `${b.costPoints} נקודות` : b.reason || 'לא זמין';
+            return `${b.title} - ${status}`;
+          });
+          benefitAnswers.push('חזרה למבחן');
+          
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'question',
+              content: {
+                text: `🎁 **הטבות זמינות**\n\nנקודות זמינות: ${availablePoints}\n\nבחר הטבה למימוש:`,
+                answers: benefitAnswers
+              },
+              id: Date.now(),
+              time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+            }
+          ]);
+        }
+      } catch (err: any) {
+        setError('שגיאה בטעינת ההטבות');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleBenefitRedeem = async (answerText: string) => {
+    if (answerText === 'חזרה למבחן') {
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: 'answer',
+          content: answerText,
+          id: Date.now(),
+          time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+        }
+      ]);
+      return;
+    }
+
+    // Extract benefit title from answer (format: "Title - X points")
+    const benefitTitle = answerText.split(' - ')[0];
+    
+    setLoading(true);
+    try {
+      const benefits = await benefitsService.getAvailable();
+      const benefit = benefits.find(b => b.title === benefitTitle);
+      
+      if (!benefit) {
+        setError('הטבה לא נמצאה');
+        setLoading(false);
+        return;
+      }
+
+      if (!benefit.canRedeem) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: 'answer',
+            content: answerText,
+            id: Date.now(),
+            time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+          },
+          {
+            type: 'question',
+            content: {
+              text: `❌ ${benefit.reason || 'לא ניתן לממש הטבה זו'}`,
+              answers: ['חזרה למבחן']
+            },
+            id: Date.now(),
+            time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+          }
+        ]);
+        setLoading(false);
+        return;
+      }
+
+      const result = await redemptionsService.redeem(benefit.id);
+      
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: 'answer',
+          content: answerText,
+          id: Date.now(),
+          time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+        },
+        {
+          type: 'question',
+          content: {
+            text: `✅ ${result.message}\n\nהבקשה נשלחה לאישור מנהל.`,
+            answers: ['חזרה למבחן']
+          },
+          id: Date.now(),
+          time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+        }
+      ]);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'שגיאה במימוש ההטבה');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -396,6 +586,32 @@ const ExamPage = () => {
                 >
                   <Info className="w-4 h-4" />
                   אודות
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <button 
+              className="hover:bg-white/10 p-2 rounded-full transition-colors flex items-center gap-2"
+              onClick={() => setActionMenuOpen(!actionMenuOpen)}
+            >
+              <Gift className="w-5 h-5" />
+            </button>
+            {actionMenuOpen && (
+              <div className="absolute top-8 left-0 bg-white rounded-lg shadow-xl py-2 min-w-[180px] z-50 animate-scale-in">
+                <button
+                  onClick={() => handleActionMenuClick('score')}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-right"
+                >
+                  <Star className="w-4 h-4" />
+                  כמה ניקוד יש לי?
+                </button>
+                <button
+                  onClick={() => handleActionMenuClick('redeem')}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-right"
+                >
+                  <Gift className="w-4 h-4" />
+                  רוצה לממש
                 </button>
               </div>
             )}

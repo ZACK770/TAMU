@@ -7,7 +7,7 @@ import * as XLSX from 'xlsx';
 import { AuthRequest } from '../middleware/auth.js';
 
 const require = createRequire(import.meta.url);
-const { default: archiver } = require('archiver');
+const archiver = require('archiver');
 const APP_BASE_URL = 'https://tamu-6suv.onrender.com';
 const buildExamUrl = (tokenCode: string) => `${APP_BASE_URL}/exam?token=${encodeURIComponent(tokenCode)}`;
 
@@ -372,6 +372,8 @@ export const downloadAllQRCodes = async (req: Request, res: Response) => {
 
     archive.pipe(res);
 
+    logger.info('Starting ZIP generation', { tokenCount: exam.tokens.length });
+
     // Generate Excel file with mail merge data
     const data = exam.tokens.map((token) => ({
       'מספר טוקן': token.tokenCode,
@@ -381,24 +383,32 @@ export const downloadAllQRCodes = async (req: Request, res: Response) => {
       'תאריך ניצול': token.usedAt ? new Date(token.usedAt).toLocaleString('he-IL') : '',
     }));
 
+    logger.info('Excel data prepared', { dataCount: data.length });
+
     const workbook = XLSX.utils.book_new();
     const worksheet = XLSX.utils.json_to_sheet(data);
     XLSX.utils.book_append_sheet(workbook, worksheet, 'טוקנים');
     
     const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    logger.info('Excel buffer created', { bufferSize: excelBuffer.length });
     archive.append(excelBuffer, { name: 'tokens.xlsx' });
+    logger.info('Excel file appended to archive');
 
     // Add QR images to the ZIP
     for (const token of exam.tokens) {
+      logger.info('Generating QR code', { tokenCode: token.tokenCode });
       const qrCodeDataURL = await QRCode.toDataURL(buildExamUrl(token.tokenCode), {
         width: 300,
         margin: 2,
       });
       const base64Data = qrCodeDataURL.split(',')[1];
       const buffer = Buffer.from(base64Data, 'base64');
+      logger.info('QR code buffer created', { tokenCode: token.tokenCode, bufferSize: buffer.length });
       archive.append(buffer, { name: `token-${token.tokenCode}.png` });
+      logger.info('QR code appended', { tokenCode: token.tokenCode });
     }
 
+    logger.info('Finalizing archive');
     await archive.finalize();
 
     logger.info('All QR codes downloaded successfully with Excel file', { examId });

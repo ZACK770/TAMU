@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, X, LogOut, Shield, CheckCircle, Circle, Download, Download as DownloadIcon, FileText, Video, Music, Ban } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
+import * as XLSX from 'xlsx';
 import { adminService, Exam } from '../services/admin';
 import { authService } from '../services/auth';
 import { materialsService, Lesson, StudyProgram } from '../services/materials';
@@ -449,6 +450,46 @@ const AdminPage = () => {
 
   const handleStudentRowClick = (student: Student) => {
     navigate(`/admin/students/${student.id}`);
+  };
+
+  const handleDownloadExcelWithQR = async () => {
+    if (!selectedExam || !selectedExam.tokens || selectedExam.tokens.length === 0) {
+      setSystemMessage('אין טוקנים להורדה');
+      return;
+    }
+
+    try {
+      // Create workbook
+      const workbook = XLSX.utils.book_new();
+      
+      // Prepare data for Excel - optimized for mail merge
+      // For InDesign: use @ prefix for image fields
+      // For Word: use absolute paths or relative paths
+      const data = selectedExam.tokens.map((token, index) => ({
+        'מספר טוקן': token.tokenCode,
+        '@תמונה_QR': `token-qr-${token.tokenCode}.png`, // @ prefix for InDesign mail merge
+        'נתיב_תמונה_מלא': `./token-qr-${token.tokenCode}.png`, // For Word mail merge
+        'סטטוס': token.isUsed ? 'נוצל' : 'זמין',
+        'תאריך ניצול': token.usedAt ? new Date(token.usedAt).toLocaleString('he-IL') : '',
+      }));
+
+      // Create worksheet
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'טוקנים');
+      
+      // Generate filename
+      const filename = `tokens-${selectedExam.title.replace(/[^a-z0-9]/gi, '-')}.xlsx`;
+      
+      // Download file
+      XLSX.writeFile(workbook, filename);
+      
+      setSystemMessage('הקובץ הורד בהצלחה. הורד גם את קובץ ה-ZIP עם התמונות ושמור אותם באותה תיקייה.');
+    } catch (error) {
+      console.error('Failed to download Excel:', error);
+      setSystemMessage('נכשל בהורדת הקובץ');
+    }
   };
 
   if (!isAdminAuthenticated) {
@@ -938,22 +979,32 @@ const AdminPage = () => {
                             צור טוקנים
                           </button>
                           {Array.isArray(selectedExam.tokens) && selectedExam.tokens.length > 0 && (
-                            <button
-                              onClick={async () => {
-                                try {
-                                  await adminService.downloadAllQRCodes(selectedExam.id, selectedExam.title);
-                                  setSystemMessage('הורדת כל ה-QR codes התחילה');
-                                } catch (error) {
-                                  console.error('Failed to download all QR codes:', error);
-                                  setSystemMessage('נכשל בהורדת QR codes');
-                                }
-                              }}
-                              className="btn-secondary flex items-center justify-center gap-2"
-                              title="הורד את כל קודי ה-QR"
-                            >
-                              <DownloadIcon className="w-5 h-5" />
-                              הורד הכל
-                            </button>
+                            <>
+                              <button
+                                onClick={handleDownloadExcelWithQR}
+                                className="btn-secondary flex items-center justify-center gap-2"
+                                title="הורד אקסל בלבד (ללא תמונות)"
+                              >
+                                <DownloadIcon className="w-5 h-5" />
+                                הורד אקסל בלבד
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await adminService.downloadAllQRCodes(selectedExam.id, selectedExam.title);
+                                    setSystemMessage('הורדת ZIP עם אקסל ותמונות התחילה');
+                                  } catch (error) {
+                                    console.error('Failed to download all QR codes:', error);
+                                    setSystemMessage('נכשל בהורדת ZIP');
+                                  }
+                                }}
+                                className="btn-primary flex items-center justify-center gap-2"
+                                title="הורד ZIP עם אקסל וכל התמונות - מוכן למיזוג"
+                              >
+                                <DownloadIcon className="w-5 h-5" />
+                                הורד ZIP מלא
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>

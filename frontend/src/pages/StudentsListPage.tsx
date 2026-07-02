@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Ban, CheckCircle } from 'lucide-react';
 import { DataTable } from '../components/DataTable';
+import { Sidebar, adminSidebarItems } from '../components/Sidebar';
 import { studentsService, Student } from '../services/students';
 
 const StudentsListPage = () => {
@@ -66,20 +67,28 @@ const StudentsListPage = () => {
   }
 
   return (
-    <div className="min-h-screen px-4 py-8" dir="rtl">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-bold text-slate-900">ניהול תלמידים</h1>
-            <p className="text-gray-600 mt-2">סה"כ {total} תלמידים במערכת</p>
-          </div>
-          <button
-            onClick={() => navigate('/admin')}
-            className="btn-secondary"
-          >
-            חזור לניהול
-          </button>
-        </div>
+    <div className="min-h-screen flex" dir="rtl">
+      <Sidebar
+        items={adminSidebarItems}
+        activeItem="students"
+        onItemClick={(itemId) => navigate(`/admin?tab=${itemId}`)}
+        position="right"
+      />
+      <div className="flex-1 flex flex-col min-h-screen">
+        <div className="px-4 py-8">
+          <div className="max-w-7xl mx-auto space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-4xl font-bold text-slate-900">ניהול תלמידים</h1>
+                <p className="text-gray-600 mt-2">סה"כ {total} תלמידים במערכת</p>
+              </div>
+              <button
+                onClick={() => navigate('/admin?tab=students')}
+                className="btn-secondary"
+              >
+                חזור לניהול
+              </button>
+            </div>
 
         <div className="card">
           <DataTable
@@ -165,6 +174,8 @@ const StudentsListPage = () => {
             sortable={true}
             onRowClick={handleRowClick}
           />
+        </div>
+          </div>
         </div>
       </div>
     </div>

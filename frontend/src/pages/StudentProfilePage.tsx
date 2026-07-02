@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Trophy, Award, Gift, Ban, CheckCircle, Plus, Minus, Trash2 } from 'lucide-react';
 import { DataTable } from '../components/DataTable';
+import { Sidebar, adminSidebarItems } from '../components/Sidebar';
 import { studentsService, StudentDetail } from '../services/students';
 
 type TabType = 'details' | 'exams' | 'redemptions' | 'points' | 'settings';
@@ -131,48 +132,56 @@ const StudentProfilePage = () => {
     : 0;
 
   return (
-    <div className="min-h-screen px-4 py-8" dir="rtl">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/admin/students')}
-              className="btn-secondary p-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900">{student.fullName || 'תלמיד'}</h1>
-              <p className="text-gray-600 mt-1">{student.phone}</p>
+    <div className="min-h-screen flex" dir="rtl">
+      <Sidebar
+        items={adminSidebarItems}
+        activeItem="students"
+        onItemClick={(itemId) => navigate(`/admin?tab=${itemId}`)}
+        position="right"
+      />
+      <div className="flex-1 flex flex-col min-h-screen">
+        <div className="px-4 py-8">
+          <div className="max-w-7xl mx-auto space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => navigate('/admin?tab=students')}
+                  className="btn-secondary p-2"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <div>
+                  <h1 className="text-4xl font-bold text-slate-900">{student.fullName || 'תלמיד'}</h1>
+                  <p className="text-gray-600 mt-1">{student.phone}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {student.isActive ? (
+                  <button
+                    onClick={handleBlock}
+                    className="btn-secondary flex items-center gap-2 text-red-600"
+                  >
+                    <Ban className="w-4 h-4" />
+                    חסום
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleUnblock}
+                    className="btn-secondary flex items-center gap-2 text-green-600"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    בטל חסימה
+                  </button>
+                )}
+                <button
+                  onClick={handleDelete}
+                  className="btn-secondary flex items-center gap-2 text-red-600"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  מחק
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="flex gap-2">
-            {student.isActive ? (
-              <button
-                onClick={handleBlock}
-                className="btn-secondary flex items-center gap-2 text-red-600"
-              >
-                <Ban className="w-4 h-4" />
-                חסום
-              </button>
-            ) : (
-              <button
-                onClick={handleUnblock}
-                className="btn-secondary flex items-center gap-2 text-green-600"
-              >
-                <CheckCircle className="w-4 h-4" />
-                בטל חסימה
-              </button>
-            )}
-            <button
-              onClick={handleDelete}
-              className="btn-secondary flex items-center gap-2 text-red-600"
-            >
-              <Trash2 className="w-4 h-4" />
-              מחק
-            </button>
-          </div>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="card bg-slate-50 border border-slate-100">
@@ -634,6 +643,8 @@ const StudentProfilePage = () => {
               )}
             </div>
           )}
+        </div>
+      </div>
         </div>
       </div>
     </div>
