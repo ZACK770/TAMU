@@ -1,12 +1,13 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, X, LogOut, Shield, CheckCircle, Circle, Download, Download as DownloadIcon, FileText, Video, Music } from 'lucide-react';
+import { Plus, Trash2, X, LogOut, Shield, CheckCircle, Circle, Download, Download as DownloadIcon, FileText, Video, Music, Ban } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { adminService, Exam } from '../services/admin';
 import { authService } from '../services/auth';
 import { materialsService, Lesson, StudyProgram } from '../services/materials';
 import { benefitsService, BenefitAdmin } from '../services/benefits';
 import { redemptionsService, RedemptionAdmin } from '../services/redemptions';
+import { studentsService, Student } from '../services/students';
 import { DataTable } from '../components/DataTable';
 import { Sidebar, adminSidebarItems } from '../components/Sidebar';
 
@@ -81,6 +82,12 @@ const AdminPage = () => {
   // Benefit search
   const [benefitSearch, setBenefitSearch] = useState('');
 
+  // Students state
+  const [students, setStudents] = useState<Student[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(true);
+  const [studentsError, setStudentsError] = useState('');
+  const [totalStudents, setTotalStudents] = useState(0);
+
   const refreshStudyPrograms = async () => {
     const programs = await materialsService.getStudyPrograms();
     setStudyPrograms(programs);
@@ -101,6 +108,20 @@ const AdminPage = () => {
       setRedemptions(data);
     } catch (error) {
       console.error('Failed to load redemptions:', error);
+    }
+  };
+
+  const loadStudents = async () => {
+    try {
+      setStudentsLoading(true);
+      const response = await studentsService.getAllStudents({ limit: 50 });
+      setStudents(response.students);
+      setTotalStudents(response.total);
+    } catch (error) {
+      console.error('Failed to load students:', error);
+      setStudentsError('שגיאה בטעינת רשימת תלמידים');
+    } finally {
+      setStudentsLoading(false);
     }
   };
 
@@ -133,6 +154,7 @@ const AdminPage = () => {
     refreshStudyPrograms();
     loadBenefits();
     loadRedemptions();
+    loadStudents();
   }, [isAdminAuthenticated]);
 
   const handleAdminLogin = async (event: FormEvent) => {
@@ -397,6 +419,36 @@ const AdminPage = () => {
       console.error('Failed to process redemption:', error);
       setSystemMessage('נכשל בעיבוד המימוש');
     }
+  };
+
+  const handleBlockStudent = async (e: React.MouseEvent, student: Student) => {
+    e.stopPropagation();
+    if (!confirm(`האם לחסום את ${student.fullName || student.phone}?`)) return;
+
+    try {
+      await studentsService.blockStudent(student.id);
+      loadStudents();
+      setSystemMessage('התלמיד נחסם בהצלחה');
+    } catch (error) {
+      console.error('Failed to block student:', error);
+      setSystemMessage('נכשל בחסימת תלמיד');
+    }
+  };
+
+  const handleUnblockStudent = async (e: React.MouseEvent, student: Student) => {
+    e.stopPropagation();
+    try {
+      await studentsService.unblockStudent(student.id);
+      loadStudents();
+      setSystemMessage('החסימה בוטלה בהצלחה');
+    } catch (error) {
+      console.error('Failed to unblock student:', error);
+      setSystemMessage('נכשל בביטול חסימה');
+    }
+  };
+
+  const handleStudentRowClick = (student: Student) => {
+    navigate(`/admin/students/${student.id}`);
   };
 
   if (!isAdminAuthenticated) {
@@ -1535,19 +1587,101 @@ const AdminPage = () => {
         )}
 
         {activeTab === 'students' && (
-          <div className="card text-center py-16">
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              ניהול תלמידים
-            </h3>
-            <p className="text-gray-500 mb-4">
-              לחץ כאן לעבור לדף ניהול התלמידים
-            </p>
-            <button
-              onClick={() => navigate('/admin/students')}
-              className="btn-primary"
-            >
-              עבור לניהול תלמידים
-            </button>
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">ניהול תלמידים</h2>
+              <p className="text-gray-600">סה"כ {totalStudents} תלמידים במערכת</p>
+            </div>
+
+            {studentsLoading ? (
+              <div className="card text-center py-12">טוען נתונים...</div>
+            ) : studentsError ? (
+              <div className="card text-center py-12 text-red-600">{studentsError}</div>
+            ) : (
+              <DataTable
+                data={students}
+                columns={[
+                  {
+                    key: 'fullName',
+                    label: 'שם מלא',
+                    sortable: true,
+                    render: (value) => value || '-'
+                  },
+                  {
+                    key: 'phone',
+                    label: 'טלפון',
+                    sortable: true
+                  },
+                  {
+                    key: 'availablePoints',
+                    label: 'נקודות זמינות',
+                    sortable: true,
+                    render: (value) => <span className="font-bold text-slate-900">{value}</span>
+                  },
+                  {
+                    key: 'totalPoints',
+                    label: 'סה"כ נקודות',
+                    sortable: true
+                  },
+                  {
+                    key: '_count',
+                    label: 'מבחנים',
+                    sortable: true,
+                    render: (value) => value?.examSessions || 0
+                  },
+                  {
+                    key: '_count',
+                    label: 'מימושים',
+                    sortable: true,
+                    render: (value) => value?.redemptions || 0
+                  },
+                  {
+                    key: 'createdAt',
+                    label: 'תאריך הרשמה',
+                    sortable: true,
+                    render: (value) => new Date(value).toLocaleDateString('he-IL')
+                  },
+                  {
+                    key: 'isActive',
+                    label: 'סטטוס',
+                    sortable: true,
+                    render: (value, row) => (
+                      <div className="flex items-center gap-2">
+                        {value ? (
+                          <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700">
+                            פעיל
+                          </span>
+                        ) : (
+                          <span className="text-xs px-3 py-1 rounded-full bg-red-100 text-red-700">
+                            חסום
+                          </span>
+                        )}
+                        {value ? (
+                          <button
+                            onClick={(e) => handleBlockStudent(e, row)}
+                            className="text-red-600 hover:text-red-700 p-1 hover:bg-red-50 rounded transition-colors"
+                            title="חסום"
+                          >
+                            <Ban className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => handleUnblockStudent(e, row)}
+                            className="text-green-600 hover:text-green-700 p-1 hover:bg-green-50 rounded transition-colors"
+                            title="בטל חסימה"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  }
+                ]}
+                pageSize={50}
+                sortable={true}
+                onRowClick={handleStudentRowClick}
+              />
+            )}
           </div>
         )}
 
