@@ -3,9 +3,11 @@ import { createRequire } from 'module';
 import prisma from '../utils/prisma.js';
 import logger from '../utils/logger.js';
 import QRCode from 'qrcode';
+import * as XLSX from 'xlsx';
+import { AuthRequest } from '../middleware/auth.js';
 
 const require = createRequire(import.meta.url);
-const archiver = require('archiver');
+const { default: archiver } = require('archiver');
 const APP_BASE_URL = 'https://tamu-6suv.onrender.com';
 const buildExamUrl = (tokenCode: string) => `${APP_BASE_URL}/exam?token=${encodeURIComponent(tokenCode)}`;
 
@@ -370,6 +372,23 @@ export const downloadAllQRCodes = async (req: Request, res: Response) => {
 
     archive.pipe(res);
 
+    // Generate Excel file with mail merge data
+    const data = exam.tokens.map((token) => ({
+      'מספר טוקן': token.tokenCode,
+      '@תמונה_QR': `token-${token.tokenCode}.png`, // @ prefix for InDesign mail merge
+      'נתיב_תמונה_מלא': `./token-${token.tokenCode}.png`, // For Word mail merge
+      'סטטוס': token.isUsed ? 'נוצל' : 'זמין',
+      'תאריך ניצול': token.usedAt ? new Date(token.usedAt).toLocaleString('he-IL') : '',
+    }));
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'טוקנים');
+    
+    const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    archive.append(excelBuffer, { name: 'tokens.xlsx' });
+
+    // Add QR images to the ZIP
     for (const token of exam.tokens) {
       const qrCodeDataURL = await QRCode.toDataURL(buildExamUrl(token.tokenCode), {
         width: 300,
@@ -382,7 +401,7 @@ export const downloadAllQRCodes = async (req: Request, res: Response) => {
 
     await archive.finalize();
 
-    logger.info('All QR codes downloaded successfully', { examId });
+    logger.info('All QR codes downloaded successfully with Excel file', { examId });
     return;
   } catch (error: any) {
     logger.error('Error downloading all QR codes', { error: error.message });
@@ -566,7 +585,7 @@ export const getStudentById = async (req: Request, res: Response) => {
   }
 };
 
-export const updateStudent = async (req: Request, res: Response) => {
+export const updateStudent = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { fullName, phone, adminNotes } = req.body;
@@ -588,7 +607,7 @@ export const updateStudent = async (req: Request, res: Response) => {
   }
 };
 
-export const blockStudent = async (req: Request, res: Response) => {
+export const blockStudent = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const adminId = req.user?.id;
@@ -610,7 +629,7 @@ export const blockStudent = async (req: Request, res: Response) => {
   }
 };
 
-export const unblockStudent = async (req: Request, res: Response) => {
+export const unblockStudent = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -631,7 +650,7 @@ export const unblockStudent = async (req: Request, res: Response) => {
   }
 };
 
-export const adjustStudentPoints = async (req: Request, res: Response) => {
+export const adjustStudentPoints = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { type, amount, reason, description } = req.body;
