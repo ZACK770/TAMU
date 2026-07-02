@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Use full URL in development and production
-const API_BASE_URL = '';
+const API_BASE_URL = 'http://localhost:9000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

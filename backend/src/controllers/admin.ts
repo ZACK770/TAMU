@@ -520,6 +520,8 @@ export const getStudentById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
+    logger.info('Fetching student by ID', { studentId: id });
+    
     const student = await prisma.user.findUnique({
       where: { id },
       include: {
@@ -552,13 +554,15 @@ export const getStudentById = async (req: Request, res: Response) => {
     });
     
     if (!student) {
+      logger.warn('Student not found', { studentId: id });
       return res.status(404).json({ error: 'Student not found' });
     }
     
+    logger.info('Student fetched successfully', { studentId: id });
     return res.json(student);
   } catch (error: any) {
-    logger.error('Error fetching student', { error: error.message });
-    return res.status(500).json({ error: 'Failed to fetch student' });
+    logger.error('Error fetching student', { error: error.message, stack: error.stack });
+    return res.status(500).json({ error: 'Failed to fetch student', details: error.message });
   }
 };
 
