@@ -178,7 +178,7 @@ const PersonalAreaPage = () => {
                     <p className="text-gray-500 text-center py-8">עדיין אין מבחנים שהושלמו</p>
                   ) : (
                     <div className="space-y-4">
-                      {history.exams.map((exam) => (
+                      {Array.isArray(history?.exams) && history.exams.map((exam) => (
                         <div key={exam.sessionId} className="rounded-2xl border border-gray-100 p-5 bg-gray-50">
                           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                             <div>
@@ -217,7 +217,7 @@ const PersonalAreaPage = () => {
                     <p className="text-gray-500 text-center py-8">אין הטבות זמינות כרגע</p>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {benefits.map((benefit) => (
+                      {Array.isArray(benefits) && benefits.map((benefit) => (
                         <div key={benefit.id} className="rounded-2xl border border-gray-100 p-5 bg-white hover:shadow-md transition-shadow">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
@@ -256,7 +256,7 @@ const PersonalAreaPage = () => {
                     <p className="text-gray-500 text-center py-8">עדיין לא מימשת הטבות</p>
                   ) : (
                     <div className="space-y-4">
-                      {redemptions.map((redemption) => (
+                      {Array.isArray(redemptions) && redemptions.map((redemption) => (
                         <div key={redemption.id} className="rounded-2xl border border-gray-100 p-5 bg-gray-50">
                           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                             <div>

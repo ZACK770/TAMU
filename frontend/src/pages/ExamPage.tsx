@@ -353,7 +353,7 @@ const ExamPage = () => {
           </div>
         </div>
 
-        {messages.map((msg, idx) => (
+        {Array.isArray(messages) && messages.map((msg, idx) => (
           <div
             key={msg.id || idx}
             className={`flex ${msg.type === 'question' ? 'justify-start' : 'justify-end'} animate-scale-in origin-top`}
@@ -385,7 +385,7 @@ const ExamPage = () => {
                   
                   {/* Answers container - styled like selection chips or stacked buttons */}
                   <div className="space-y-2 mt-2">
-                    {msg.content.answers.map((answer: string, aIdx: number) => (
+                    {Array.isArray(msg.content.answers) && msg.content.answers.map((answer: string, aIdx: number) => (
                       <button
                         key={aIdx}
                         onClick={() => handleAnswer(aIdx)}

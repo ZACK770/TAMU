@@ -146,8 +146,8 @@ const AdminPage = () => {
         ...selectedExam,
         questions: [...selectedExam.questions, question],
       };
-      
-      setExams(exams.map(e => e.id === selectedExam.id ? updatedExam : e));
+
+      setExams(Array.isArray(exams) ? exams.map(e => e.id === selectedExam.id ? updatedExam : e) : []);
       setSelectedExam(updatedExam);
       setNewQuestion({
         text: '',
@@ -169,8 +169,8 @@ const AdminPage = () => {
         ...selectedExam,
         questions: selectedExam.questions.filter(q => q.id !== questionId),
       };
-      
-      setExams(exams.map(e => e.id === selectedExam.id ? updatedExam : e));
+
+      setExams(Array.isArray(exams) ? exams.map(e => e.id === selectedExam.id ? updatedExam : e) : []);
       setSelectedExam(updatedExam);
     } catch (error) {
       console.error('Failed to delete question:', error);
@@ -237,7 +237,7 @@ const AdminPage = () => {
     if (!selectedExam) return;
     try {
       const updatedExam = await adminService.updateExam(selectedExam.id, { rewardRules, benefits });
-      setExams(exams.map(e => e.id === selectedExam.id ? updatedExam : e));
+      setExams(Array.isArray(exams) ? exams.map(e => e.id === selectedExam.id ? updatedExam : e) : []);
       setSelectedExam(updatedExam);
       setSystemMessage('הגדרות הניקוד עודכנו');
     } catch (error) {
@@ -265,7 +265,7 @@ const AdminPage = () => {
   const handleUpdateLesson = async (id: string, data: any) => {
     try {
       const updatedLesson = await materialsService.updateLesson(id, data);
-      setLessons(lessons.map(l => l.id === id ? updatedLesson : l));
+      setLessons(Array.isArray(lessons) ? lessons.map(l => l.id === id ? updatedLesson : l) : []);
       if (selectedLesson?.id === id) setSelectedLesson(updatedLesson);
       setSystemMessage('שיעור עודכן בהצלחה');
     } catch (error) {
@@ -297,7 +297,7 @@ const AdminPage = () => {
           ...selectedLesson,
           materials: [...selectedLesson.materials, material],
         };
-        setLessons(lessons.map(l => l.id === selectedLesson.id ? updatedLesson : l));
+        setLessons(Array.isArray(lessons) ? lessons.map(l => l.id === selectedLesson.id ? updatedLesson : l) : []);
         setSelectedLesson(updatedLesson);
       }
       setNewMaterial({ title: '', fileUrl: '', fileType: 'pdf', fileSize: 0, lessonId: '' });
@@ -317,7 +317,7 @@ const AdminPage = () => {
           ...selectedLesson,
           materials: selectedLesson.materials.filter(m => m.id !== id),
         };
-        setLessons(lessons.map(l => l.id === selectedLesson.id ? updatedLesson : l));
+        setLessons(Array.isArray(lessons) ? lessons.map(l => l.id === selectedLesson.id ? updatedLesson : l) : []);
         setSelectedLesson(updatedLesson);
       }
       setSystemMessage('חומר נמחק בהצלחה');
@@ -354,7 +354,7 @@ const AdminPage = () => {
   const handleUpdateBenefit = async (id: string, data: any) => {
     try {
       const updatedBenefit = await benefitsService.update(id, data);
-      setBenefits(benefits.map(b => b.id === id ? updatedBenefit : b));
+      setBenefits(Array.isArray(benefits) ? benefits.map(b => b.id === id ? updatedBenefit : b) : []);
       setSystemMessage('הטבה עודכנה בהצלחה');
     } catch (error) {
       console.error('Failed to update benefit:', error);
@@ -501,7 +501,7 @@ const AdminPage = () => {
             <button onClick={handleCreateStudyProgram} className="btn-primary">צור תכנית</button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {studyPrograms.map((program) => (
+            {Array.isArray(studyPrograms) && studyPrograms.map((program) => (
               <span key={program.id} className="px-3 py-1 rounded-full bg-slate-50 text-slate-900 text-sm">{program.title}</span>
             ))}
           </div>
@@ -522,7 +522,7 @@ const AdminPage = () => {
             </div>
 
             <div className="space-y-4">
-              {exams.map((exam) => (
+              {Array.isArray(exams) && exams.map((exam) => (
                 <div
                   key={exam.id}
                   className={`card-hover cursor-pointer transition-all duration-200 ${
@@ -601,19 +601,19 @@ const AdminPage = () => {
                         value={selectedExam.studyProgramId || ''}
                         onChange={async (e) => {
                           const updatedExam = await adminService.updateExam(selectedExam.id, { studyProgramId: e.target.value || null });
-                          setExams(exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
+                          setExams(Array.isArray(exams) ? exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex) : []);
                           setSelectedExam(updatedExam);
                         }}
                         className="input-field"
                       >
                         <option value="">ללא תכנית</option>
-                        {studyPrograms.map((program) => <option key={program.id} value={program.id}>{program.title}</option>)}
+                        {Array.isArray(studyPrograms) && studyPrograms.map((program) => <option key={program.id} value={program.id}>{program.title}</option>)}
                       </select>
                     </div>
                     <div>
                       <h3 className="font-semibold mb-3">מדרגות ניקוד</h3>
                       <div className="space-y-2">
-                        {(selectedExam.rewardRules || []).map((rule, idx) => (
+                        {Array.isArray(selectedExam.rewardRules) && selectedExam.rewardRules.map((rule, idx) => (
                           <div key={idx} className="grid grid-cols-3 gap-2">
                             <input type="number" value={rule.minScore} onChange={(e) => {
                               const rewardRules = [...(selectedExam.rewardRules || [])];
@@ -637,7 +637,7 @@ const AdminPage = () => {
                     <div>
                       <h3 className="font-semibold mb-3">הטבות למימוש</h3>
                       <div className="space-y-2">
-                        {(selectedExam.benefits || []).map((benefit, idx) => (
+                        {Array.isArray(selectedExam.benefits) && selectedExam.benefits.map((benefit, idx) => (
                           <div key={idx} className="grid grid-cols-4 gap-2">
                             <input value={benefit.title} onChange={(e) => {
                               const benefits = [...(selectedExam.benefits || [])];
@@ -688,7 +688,7 @@ const AdminPage = () => {
                           תשובות
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {newQuestion.answers.map((answer, idx) => (
+                          {Array.isArray(newQuestion.answers) && newQuestion.answers.map((answer, idx) => (
                             <div key={idx} className="relative">
                               <input
                                 type="text"
@@ -734,7 +734,7 @@ const AdminPage = () => {
                       <p className="text-gray-500 text-center py-8">אין שאלות עדיין</p>
                     ) : (
                       <div className="space-y-3">
-                        {selectedExam.questions.map((question, idx) => (
+                        {Array.isArray(selectedExam.questions) && selectedExam.questions.map((question, idx) => (
                           <div key={question.id} className="bg-gray-50 rounded-xl p-4">
                             <div className="flex justify-between items-start mb-2">
                               <span className="text-sm text-gray-500">שאלה {idx + 1}</span>
@@ -747,7 +747,7 @@ const AdminPage = () => {
                             </div>
                             <p className="font-medium mb-2">{question.text}</p>
                             <div className="grid grid-cols-2 gap-2 text-sm">
-                              {question.answers.map((answer, aIdx) => (
+                              {Array.isArray(question.answers) && question.answers.map((answer, aIdx) => (
                                 <div
                                   key={aIdx}
                                   className={`p-2 rounded ${
@@ -789,7 +789,7 @@ const AdminPage = () => {
                               ...selectedExam,
                               tokens: [...(selectedExam.tokens || []), ...tokens],
                             };
-                            setExams(exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex));
+                            setExams(Array.isArray(exams) ? exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex) : []);
                             setSelectedExam(updatedExam);
                             setSystemMessage(`נוצרו ${bulkTokenCount} טוקנים חדשים`);
                           } catch (error) {
@@ -833,7 +833,7 @@ const AdminPage = () => {
                     {(selectedExam.tokens || []).length === 0 ? (
                       <p className="text-sm text-gray-500 text-center py-4">אין טוקנים למבחן הזה עדיין</p>
                     ) : (
-                      (selectedExam.tokens || []).map((token) => (
+                      {Array.isArray(selectedExam.tokens) && selectedExam.tokens.map((token) => (
                         <div key={token.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
                           <div className="flex items-center gap-4">
                             <QRCodeCanvas value={buildExamUrl(token.tokenCode)} size={60} level="H" />
@@ -898,7 +898,7 @@ const AdminPage = () => {
               </div>
 
               <div className="space-y-4">
-                {lessons.map((lesson) => (
+                {Array.isArray(lessons) && lessons.map((lesson) => (
                   <div
                     key={lesson.id}
                     className={`card-hover cursor-pointer transition-all duration-200 ${
@@ -1033,7 +1033,7 @@ const AdminPage = () => {
                         <p className="text-gray-500 text-center py-8">אין חומרים לשיעור הזה עדיין</p>
                       ) : (
                         <div className="space-y-3">
-                          {selectedLesson.materials.map((material) => (
+                          {Array.isArray(selectedLesson.materials) && selectedLesson.materials.map((material) => (
                             <div key={material.id} className="bg-gray-50 rounded-xl p-4">
                               <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-3">
@@ -1100,7 +1100,7 @@ const AdminPage = () => {
             </div>
 
             <div className="space-y-4">
-              {benefits.map((benefit) => (
+              {Array.isArray(benefits) && benefits.map((benefit) => (
                 <div key={benefit.id} className="bg-gray-50 rounded-xl p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex-1">
@@ -1161,7 +1161,7 @@ const AdminPage = () => {
           <div className="card">
             <h2 className="text-xl font-bold mb-6">ניהול מימושים</h2>
             <div className="space-y-4">
-              {redemptions.map((redemption) => (
+              {Array.isArray(redemptions) && redemptions.map((redemption) => (
                 <div key={redemption.id} className="bg-gray-50 rounded-xl p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div>
@@ -1244,7 +1244,7 @@ const AdminPage = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">תכנית לימוד</label>
                 <select value={newExamStudyProgramId} onChange={(e) => setNewExamStudyProgramId(e.target.value)} className="input-field">
                   <option value="">ללא תכנית</option>
-                  {studyPrograms.map((program) => <option key={program.id} value={program.id}>{program.title}</option>)}
+                  {Array.isArray(studyPrograms) && studyPrograms.map((program) => <option key={program.id} value={program.id}>{program.title}</option>)}
                 </select>
               </div>
               <div className="flex gap-2">
@@ -1417,7 +1417,7 @@ const AdminPage = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">תכנית לימוד</label>
                 <select value={newLesson.studyProgramId} onChange={(e) => setNewLesson({ ...newLesson, studyProgramId: e.target.value })} className="input-field">
                   <option value="">ללא תכנית</option>
-                  {studyPrograms.map((program) => <option key={program.id} value={program.id}>{program.title}</option>)}
+                  {Array.isArray(studyPrograms) && studyPrograms.map((program) => <option key={program.id} value={program.id}>{program.title}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-2">
