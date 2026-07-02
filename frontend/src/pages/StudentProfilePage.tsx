@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Trophy, Award, Gift, Settings, Ban, CheckCircle, Plus, Minus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trophy, Award, Gift, Ban, CheckCircle, Plus, Minus, Trash2 } from 'lucide-react';
 import { DataTable } from '../components/DataTable';
 import { studentsService, StudentDetail } from '../services/students';
 

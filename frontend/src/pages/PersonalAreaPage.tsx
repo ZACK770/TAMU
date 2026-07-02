@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Award, Gift, LogOut, Trophy, ArrowLeft } from 'lucide-react';
+import { Award, Gift, LogOut, Trophy } from 'lucide-react';
 import { examService, ExamHistoryResponse } from '../services/exam';
 import { authService } from '../services/auth';
 import { benefitsService, Benefit } from '../services/benefits';
 import { redemptionsService, Redemption } from '../services/redemptions';
 import { statsService, MyStats } from '../services/stats';
-import { studentsService, StudentDetail } from '../services/students';
 import { DataTable } from '../components/DataTable';
+import { Sidebar, personalAreaSidebarItems } from '../components/Sidebar';
 
 type TabType = 'exams' | 'benefits' | 'redemptions';
 
@@ -22,7 +22,6 @@ const PersonalAreaPage = () => {
   const [stats, setStats] = useState<MyStats | null>(null);
   const [benefits, setBenefits] = useState<Benefit[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
-  const [studentData, setStudentData] = useState<StudentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -33,56 +32,25 @@ const PersonalAreaPage = () => {
       return;
     }
 
+    // Redirect to StudentProfilePage if viewing another user's profile
+    if (isViewingOtherUser && userId) {
+      navigate(`/admin/students/${userId}`, { replace: true });
+      return;
+    }
+
     const loadData = async () => {
       try {
-        if (isViewingOtherUser && userId) {
-          // Admin viewing another user's profile
-          const student = await studentsService.getStudentById(userId);
-          setStudentData(student);
-          
-          // Convert student data to match the expected format
-          const convertedHistory: ExamHistoryResponse = {
-            availablePoints: student.availablePoints,
-            totalPoints: student.totalPoints,
-            exams: student.examSessions.map(session => ({
-              sessionId: session.id,
-              examId: session.exam.id,
-              examTitle: session.exam.title,
-              score: session.score || 0,
-              earnedPoints: session.earnedPoints,
-              completedAt: session.completedAt || new Date().toISOString(),
-              questionStats: null, // Not available in student data
-              studyProgram: null, // Not available in student data
-            }))
-          };
-          
-          const convertedStats: MyStats = {
-            totalExams: student.examSessions.filter(s => s.isCompleted).length,
-            averageScore: student.examSessions
-              .filter(s => s.isCompleted && s.score !== null)
-              .reduce((sum, s) => sum + (s.score || 0), 0) / 
-              (student.examSessions.filter(s => s.isCompleted && s.score !== null).length || 1),
-            pointsSpent: student.redemptions.reduce((sum, r) => sum + r.pointsUsed, 0),
-          };
-          
-          setHistory(convertedHistory);
-          setStats(convertedStats);
-          setRedemptions(student.redemptions);
-          // Don't load benefits for other users
-          setBenefits([]);
-        } else {
-          // Load current user's data
-          const [historyData, statsData, benefitsData, redemptionsData] = await Promise.all([
-            examService.getMyHistory(),
-            statsService.getMyStats(),
-            benefitsService.getAvailable(),
-            redemptionsService.getMyRedemptions(),
-          ]);
-          setHistory(historyData);
-          setStats(statsData);
-          setBenefits(benefitsData);
-          setRedemptions(redemptionsData);
-        }
+        // Load current user's data
+        const [historyData, statsData, benefitsData, redemptionsData] = await Promise.all([
+          examService.getMyHistory(),
+          statsService.getMyStats(),
+          benefitsService.getAvailable(),
+          redemptionsService.getMyRedemptions(),
+        ]);
+        setHistory(historyData);
+        setStats(statsData);
+        setBenefits(benefitsData);
+        setRedemptions(redemptionsData);
       } catch (err: any) {
         setError(err.response?.data?.error || 'שגיאה בטעינת האיזור האישי');
       } finally {
@@ -139,43 +107,38 @@ const PersonalAreaPage = () => {
   };
 
   return (
-    <div className="min-h-screen px-4 py-8" dir="rtl">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            {isViewingOtherUser && (
-              <button
-                onClick={() => navigate('/admin/students')}
-                className="btn-secondary p-2"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-            )}
-            <div>
-              <h1 className="text-4xl font-bold text-slate-900 font-bold">
-                {isViewingOtherUser ? (studentData?.fullName || 'פרופיל תלמיד') : 'האזור האישי'}
-              </h1>
-              <p className="text-gray-600 mt-2">
-                {isViewingOtherUser 
-                  ? `צפייה בפרופיל של ${studentData?.fullName || studentData?.phone}`
-                  : 'הציונים, הנקודות וההטבות שלך במקום אחד'
-                }
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            {!isViewingOtherUser && (
-              <>
+    <div className="min-h-screen flex" dir="rtl">
+      {/* Sidebar */}
+      <Sidebar
+        items={personalAreaSidebarItems}
+        activeItem={activeTab}
+        onItemClick={setActiveTab}
+        position="right"
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Header */}
+        <header className="glass sticky top-0 z-40 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-4xl font-bold text-slate-900 font-bold">האזור האישי</h1>
+                <p className="text-gray-600 mt-2">הציונים, הנקודות וההטבות שלך במקום אחד</p>
+              </div>
+              <div className="flex gap-2">
                 <button onClick={() => navigate('/')} className="btn-secondary">דף הבית</button>
                 <button onClick={handleLogout} className="btn-secondary flex items-center gap-2">
                   <LogOut className="w-4 h-4" />
                   יציאה
                 </button>
-              </>
-            )}
+              </div>
+            </div>
           </div>
-          </div>
-        </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
 
         {loading ? (
           <div className="card text-center py-12">טוען נתונים...</div>
@@ -211,33 +174,6 @@ const PersonalAreaPage = () => {
             </div>
 
             <div className="card">
-              <div className="flex gap-2 border-b border-gray-200 pb-4 mb-6">
-                <button
-                  onClick={() => setActiveTab('exams')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    activeTab === 'exams' ? 'bg-slate-900 text-white' : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  היסטוריית מבחנים
-                </button>
-                <button
-                  onClick={() => setActiveTab('benefits')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    activeTab === 'benefits' ? 'bg-slate-900 text-white' : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  הטבות זמינות
-                </button>
-                <button
-                  onClick={() => setActiveTab('redemptions')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    activeTab === 'redemptions' ? 'bg-slate-900 text-white' : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  היסטוריית מימושים
-                </button>
-              </div>
-
               {activeTab === 'exams' && (
                 <div>
                   <h2 className="text-2xl font-bold mb-6">היסטוריית מבחנים</h2>
@@ -423,6 +359,7 @@ const PersonalAreaPage = () => {
             </div>
           </>
         )}
+        </main>
       </div>
     </div>
   );

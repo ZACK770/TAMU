@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, User as UserIcon, Ban, CheckCircle } from 'lucide-react';
+import { Ban, CheckCircle } from 'lucide-react';
 import { DataTable } from '../components/DataTable';
 import { studentsService, Student } from '../services/students';
 
@@ -11,7 +11,7 @@ const StudentsListPage = () => {
   const [error, setError] = useState('');
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize] = useState(50);
 
   const loadStudents = async (page = 1) => {
     try {

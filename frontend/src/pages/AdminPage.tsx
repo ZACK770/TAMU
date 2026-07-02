@@ -8,6 +8,7 @@ import { materialsService, Lesson, StudyProgram } from '../services/materials';
 import { benefitsService, BenefitAdmin } from '../services/benefits';
 import { redemptionsService, RedemptionAdmin } from '../services/redemptions';
 import { DataTable } from '../components/DataTable';
+import { Sidebar, adminSidebarItems } from '../components/Sidebar';
 
 const APP_BASE_URL = 'https://tamu-6suv.onrender.com';
 const buildExamUrl = (tokenCode: string) => `${APP_BASE_URL}/exam?token=${encodeURIComponent(tokenCode)}`;
@@ -436,88 +437,55 @@ const AdminPage = () => {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="glass sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <nav className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center">
-                <Shield className="w-6 h-6 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold text-slate-900 font-bold">ממשק ניהול</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate('/')}
-                className="btn-secondary"
-              >
-                חזרה לאתר
-              </button>
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setActiveTab('exams')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    activeTab === 'exams' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  מבחנים
-                </button>
-                <button
-                  onClick={() => setActiveTab('lessons')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    activeTab === 'lessons' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  שיעורים
-                </button>
-                <button
-                  onClick={() => setActiveTab('benefits')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    activeTab === 'benefits' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  הטבות
-                </button>
-                <button
-                  onClick={() => setActiveTab('redemptions')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    activeTab === 'redemptions' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  מימושים
-                </button>
-                <button
-                  onClick={() => setActiveTab('students')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    activeTab === 'students' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  תלמידים
-                </button>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="text-slate-600 hover:text-slate-900 p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
-          </nav>
-        </div>
-      </header>
+    <div className="min-h-screen flex">
+      {/* Sidebar */}
+      <Sidebar
+        items={adminSidebarItems}
+        activeItem={activeTab}
+        onItemClick={setActiveTab}
+        position="right"
+      />
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {systemMessage && (
-          <div className="mb-6 rounded-xl bg-slate-900 text-white px-4 py-3 text-sm flex justify-between items-center">
-            <span>{systemMessage}</span>
-            <button onClick={() => setSystemMessage('')} className="text-gray-300 hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Header */}
+        <header className="glass sticky top-0 z-40 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <nav className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center">
+                  <Shield className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-2xl font-bold text-slate-900 font-bold">ממשק ניהול</h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigate('/')}
+                  className="btn-secondary"
+                >
+                  חזרה לאתר
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="text-slate-600 hover:text-slate-900 p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+            </nav>
           </div>
-        )}
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+          {systemMessage && (
+            <div className="mb-6 rounded-xl bg-slate-900 text-white px-4 py-3 text-sm flex justify-between items-center">
+              <span>{systemMessage}</span>
+              <button onClick={() => setSystemMessage('')} className="text-gray-300 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
         <div className="card mb-8">
           <h2 className="text-xl font-bold mb-4">תכניות לימוד</h2>
@@ -1560,7 +1528,7 @@ const AdminPage = () => {
                 ]}
                 pageSize={50}
                 sortable={true}
-                getRowLink={(row) => `/personal-area?userId=${row.user.id}`}
+                getRowLink={(row) => `/admin/students/${row.user.id}`}
               />
             )}
           </div>
@@ -1582,11 +1550,9 @@ const AdminPage = () => {
             </button>
           </div>
         )}
-      </main>
 
-      {}
-      {/* Create Exam Modal */}
-      {showCreateModal && (
+        {/* Create Exam Modal */}
+        {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in">
           <div className="card max-w-md w-full animate-scale-in">
             <div className="flex justify-between items-center mb-6">
@@ -1890,6 +1856,8 @@ const AdminPage = () => {
           </div>
         </div>
       )}
+      </main>
+      </div>
     </div>
   );
 };
