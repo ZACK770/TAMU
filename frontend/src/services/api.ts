@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Use full URL in development and production
-const API_BASE_URL = 'http://localhost:9000';
+// Use relative URL - backend serves both frontend and API on same port
+const API_BASE_URL = '';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
