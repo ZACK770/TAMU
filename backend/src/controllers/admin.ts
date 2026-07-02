@@ -6,6 +6,8 @@ import QRCode from 'qrcode';
 
 const require = createRequire(import.meta.url);
 const archiver = require('archiver');
+const APP_BASE_URL = 'https://tamu-6suv.onrender.com';
+const buildExamUrl = (tokenCode: string) => `${APP_BASE_URL}/exam?token=${encodeURIComponent(tokenCode)}`;
 
 export const createExam = async (req: Request, res: Response) => {
   try {
@@ -250,7 +252,7 @@ export const generateTokenQR = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Token not found' });
     }
 
-    const qrCodeDataURL = await QRCode.toDataURL(token.tokenCode, {
+    const qrCodeDataURL = await QRCode.toDataURL(buildExamUrl(token.tokenCode), {
       width: 300,
       margin: 2,
     });
@@ -300,7 +302,7 @@ export const downloadAllQRCodes = async (req: Request, res: Response) => {
     archive.pipe(res);
 
     for (const token of exam.tokens) {
-      const qrCodeDataURL = await QRCode.toDataURL(token.tokenCode, {
+      const qrCodeDataURL = await QRCode.toDataURL(buildExamUrl(token.tokenCode), {
         width: 300,
         margin: 2,
       });

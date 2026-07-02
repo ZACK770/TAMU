@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '../services/auth';
 import { useAuth } from '../hooks/useAuth';
 import { Phone, Shield, RefreshCw, ArrowLeft, CheckCircle2 } from 'lucide-react';
 
 const AuthPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+  const returnTo = location.state?.returnTo || '/exam';
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'phone' | 'code'>('phone');
@@ -53,15 +55,15 @@ const AuthPage = () => {
       
       if (response.needsRegistration) {
         console.log('[AuthPage] User needs registration, navigating to /register');
-        navigate('/register', { state: { phone } });
+        navigate('/register', { state: { phone, returnTo } });
       } else if (response.token && response.user) {
         console.log('[AuthPage] User authenticated, calling login()');
         
         login(response.token, response.user);
         
-        console.log('[AuthPage] Navigating to /exam in 100ms');
+        console.log('[AuthPage] Navigating to returnTo in 100ms');
         setTimeout(() => {
-          navigate('/exam');
+          navigate(returnTo);
         }, 100);
       } else {
         setError('תגובה לא צפויה מהשרת');

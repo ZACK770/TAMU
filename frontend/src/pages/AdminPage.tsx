@@ -8,6 +8,9 @@ import { materialsService, Lesson, StudyProgram } from '../services/materials';
 import { benefitsService, BenefitAdmin } from '../services/benefits';
 import { redemptionsService, RedemptionAdmin } from '../services/redemptions';
 
+const APP_BASE_URL = 'https://tamu-6suv.onrender.com';
+const buildExamUrl = (tokenCode: string) => `${APP_BASE_URL}/exam?token=${encodeURIComponent(tokenCode)}`;
+
 const AdminPage = () => {
   const navigate = useNavigate();
   const [exams, setExams] = useState<Exam[]>([]);
@@ -833,7 +836,7 @@ const AdminPage = () => {
                       (selectedExam.tokens || []).map((token) => (
                         <div key={token.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
                           <div className="flex items-center gap-4">
-                            <QRCodeCanvas value={token.tokenCode} size={60} level="H" />
+                            <QRCodeCanvas value={buildExamUrl(token.tokenCode)} size={60} level="H" />
                             <div>
                               <div className="font-mono text-lg font-bold tracking-wider">{token.tokenCode}</div>
                               <div className="text-xs text-gray-500">

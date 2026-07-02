@@ -7,17 +7,13 @@ export const getMyExamHistory = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
 
-    const sessions = await prisma.examSession.findMany({
+    const sessions: any[] = await prisma.examSession.findMany({
       where: { userId, isCompleted: true },
       include: {
         exam: {
           include: {
             questions: true,
-            benefits: {
-              include: {
-                benefit: true,
-              },
-            },
+            benefits: true,
             studyProgram: true,
           },
         },
@@ -42,13 +38,13 @@ export const getMyExamHistory = async (req: AuthRequest, res: Response) => {
       availablePoints: user?.availablePoints || 0,
       averageScore,
       totalExams: sessions.length,
-      exams: sessions.map((session) => {
+      exams: sessions.map((session: any) => {
         const answers = session.answers as Record<string, number>;
         let correctCount = 0;
         let incorrectCount = 0;
         let skippedCount = 0;
 
-        session.exam.questions.forEach((q) => {
+        session.exam.questions.forEach((q: any) => {
           const userAnswer = answers[q.id];
           if (userAnswer === undefined) {
             skippedCount++;
@@ -175,7 +171,7 @@ export const getNextQuestion = async (req: AuthRequest, res: Response) => {
     }
 
     // Get exam with questions
-    const exam = await prisma.exam.findUnique({
+    const exam: any = await prisma.exam.findUnique({
       where: { id: session.examId },
       include: { questions: true },
     });
@@ -297,14 +293,14 @@ export const completeExam = async (req: AuthRequest, res: Response) => {
     }
 
     // Get exam with questions
-    const exam = await prisma.exam.findUnique({
+    const exam: any = await prisma.exam.findUnique({
       where: { id: session.examId },
       include: {
         questions: true,
         rewardRules: { orderBy: { minScore: 'desc' } },
         benefits: {
           include: {
-            benefit: true,
+            // ExamBenefit doesn't have a nested benefit relation in schema
           },
         },
       },
@@ -325,7 +321,7 @@ export const completeExam = async (req: AuthRequest, res: Response) => {
     }
 
     const score = Math.round((correctCount / exam.questions.length) * 100);
-    const matchedReward = exam.rewardRules.find((rule) => score >= rule.minScore);
+    const matchedReward = exam.rewardRules.find((rule: any) => score >= rule.minScore);
     const earnedPoints = matchedReward?.points || 0;
 
     // Update session and user points in transaction

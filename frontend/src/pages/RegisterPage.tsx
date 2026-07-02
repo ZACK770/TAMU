@@ -13,6 +13,7 @@ const RegisterPage = () => {
   const [error, setError] = useState('');
 
   const phone = location.state?.phone || '';
+  const returnTo = location.state?.returnTo || '/exam';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +23,7 @@ const RegisterPage = () => {
     try {
       const response = await authService.register(phone, fullName);
       login(response.token, response.user);
-      navigate('/exam');
+      navigate(returnTo);
     } catch (err: any) {
       setError(err.response?.data?.error || 'שגיאה בהרשמה');
     } finally {
@@ -34,7 +35,7 @@ const RegisterPage = () => {
     <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
       <div className="card max-w-md w-full animate-scale-in border border-slate-200 shadow-sm bg-white p-8">
         <button
-          onClick={() => navigate('/auth')}
+          onClick={() => navigate('/auth', { state: { returnTo } })}
           className="flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-6 transition-colors text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" />

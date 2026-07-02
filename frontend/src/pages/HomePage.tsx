@@ -28,8 +28,10 @@ const HomePage = () => {
     loadMaterials();
   }, []);
 
-  const filteredLessons = selectedProgramId === 'all' ? lessons : lessons.filter((lesson) => lesson.studyProgramId === selectedProgramId);
-  const filteredMaterials = filteredLessons.flatMap((lesson) => lesson.materials);
+  const filteredLessons = selectedProgramId === 'all' 
+    ? (Array.isArray(lessons) ? lessons : [])
+    : (Array.isArray(lessons) ? lessons : []).filter((lesson) => lesson.studyProgramId === selectedProgramId);
+  const filteredMaterials = filteredLessons.flatMap((lesson) => Array.isArray(lesson.materials) ? lesson.materials : []);
   const weeklyLessons = filteredLessons.filter((lesson) => lesson.parasha || lesson.weekDate);
   const currentWeeklyLesson = weeklyLessons.find((lesson) => lesson.weekDate && new Date(lesson.weekDate) >= new Date()) || weeklyLessons[0];
 
@@ -55,115 +57,144 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <header className="glass sticky top-0 z-50 border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <nav className="flex justify-between items-center">
+      <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4 bg-white/70 backdrop-blur-xl border border-white/20 rounded-2xl mt-4 px-6 shadow-lg shadow-slate-200/50">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-slate-800 to-slate-950 rounded-xl flex items-center justify-center shadow-inner">
                 <GraduationCap className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900">פורטל הלמידה והמבחנים</h1>
+              <div>
+                <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">TAMU</h1>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Learning Portal</p>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-4">
               <button
                 onClick={() => navigate('/admin')}
-                className="btn-secondary text-sm px-4 py-2"
+                className="hidden md:flex items-center gap-2 text-slate-600 hover:text-slate-900 font-semibold text-sm px-4 py-2 rounded-lg transition-colors"
               >
                 ניהול
               </button>
               {isAuthenticated ? (
-                <>
+                <div className="flex items-center gap-2">
                   <button
                     onClick={() => navigate('/personal')}
-                    className="btn-secondary text-sm px-4 py-2"
+                    className="btn-secondary text-sm px-4 py-2.5 hidden sm:block"
                   >
                     אזור אישי
                   </button>
                   <button
                     onClick={() => navigate('/exam')}
-                    className="btn-primary text-sm px-4 py-2"
+                    className="btn-primary text-sm px-6 py-2.5 bg-gradient-to-r from-slate-900 to-slate-800 border-none shadow-xl shadow-slate-900/20"
                   >
                     כניסה למבחן
                   </button>
-                </>
+                </div>
               ) : (
                 <button
                   onClick={() => navigate('/auth')}
-                  className="btn-primary text-sm px-4 py-2"
+                  className="btn-primary text-sm px-8 py-2.5 bg-gradient-to-r from-slate-900 to-slate-800 border-none shadow-xl shadow-slate-900/20"
                 >
                   התחברות
                 </button>
               )}
             </div>
-          </nav>
+          </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex-1 w-full">
-        <div className="text-center mb-16 animate-fade-in">
-          <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-800 px-4 py-1.5 rounded-full text-xs font-semibold mb-6 tracking-wide">
-            <span className="w-1.5 h-1.5 bg-slate-900 rounded-full animate-ping"></span>
-            גרסה מתקדמת 2.0
+      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden pt-20">
+        {/* Background Image with Parallax-like feel */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&q=80&w=2070" 
+            alt="Hero Background"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-50/20 via-slate-50/80 to-slate-50"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-50/40 via-transparent to-slate-50/40"></div>
+        </div>
+
+        <div className="relative z-10 max-w-5xl mx-auto px-4 text-center animate-fade-in">
+          <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-md text-slate-900 px-5 py-2 rounded-full text-xs font-bold mb-8 shadow-sm border border-white/50 animate-slide-up">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-600"></span>
+            </span>
+            גרסה מתקדמת 2026
           </div>
-          <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
-            המרחב האישי ללמידה והצלחה
+          
+          <h2 className="text-5xl md:text-7xl lg:text-8xl font-black text-slate-900 tracking-tight mb-8 leading-[1.1] animate-slide-up" style={{ animationDelay: '0.1s' }}>
+            העתיד של הלימוד <br /> 
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-slate-600 to-slate-900">כבר כאן.</span>
           </h2>
-          <p className="text-lg text-slate-600 mb-8 max-w-2xl mx-auto font-normal leading-relaxed">
-            ריכוז חומרי הלימוד השבועיים, שיעורי שמע ווידאו, ומערכת בחינות אינטראקטיבית ונקייה מהסחות דעת.
+          
+          <p className="text-xl md:text-2xl text-slate-600 mb-12 max-w-3xl mx-auto font-medium leading-relaxed animate-slide-up" style={{ animationDelay: '0.2s' }}>
+            מרחב למידה אינטליגנטי, ממוקד וחווייתי. <br className="hidden md:block" />
+            כל מה שאתה צריך כדי להצליח, במקום אחד.
           </p>
-          <button
-            onClick={handleStartExam}
-            className="btn-primary text-base px-10 py-3.5 shadow-sm hover:shadow"
-          >
-            התחל מבחן
-          </button>
-        </div>
 
-        {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-          <div className="card p-6 flex flex-col items-center text-center">
-            <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-4">
-              <BookOpen className="w-6 h-6 text-slate-900" />
-            </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-1">למידה מרוכזת</h3>
-            <p className="text-sm text-slate-600">
-              גישה ישירה לחומרי לימוד וקבצי עבודה להורדה מהירה
-            </p>
-          </div>
-          <div className="card p-6 flex flex-col items-center text-center">
-            <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-4">
-              <Smartphone className="w-6 h-6 text-slate-900" />
-            </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-1">נגישות מובייל</h3>
-            <p className="text-sm text-slate-600">
-              ממשק נקי ומותאם במיוחד לעבודה יעילה מכל טלפון נייד
-            </p>
-          </div>
-          <div className="card p-6 flex flex-col items-center text-center">
-            <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-4">
-              <CheckCircle className="w-6 h-6 text-slate-900" />
-            </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-1">מבחני צ'אט</h3>
-            <p className="text-sm text-slate-600">
-              ממשק בחינה ממוקד ואינטראקטיבי המדמה שיחת צ'אט זורמת
-            </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: '0.3s' }}>
+            <button
+              onClick={handleStartExam}
+              className="btn-primary text-lg px-12 py-5 shadow-2xl shadow-slate-900/30 w-full sm:w-auto hover:scale-105 transition-transform duration-300"
+            >
+              התחל מבחן עכשיו
+            </button>
+            <button
+              onClick={() => {
+                const element = document.getElementById('learning-section');
+                element?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="btn-secondary text-lg px-12 py-5 w-full sm:w-auto hover:bg-slate-50 transition-all"
+            >
+              חומרי לימוד
+            </button>
           </div>
         </div>
 
-        {/* Learning Materials Section */}
-        <div className="space-y-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-            <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+        {/* Floating Decorative Elements */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce-slow hidden md:block">
+          <div className="w-6 h-10 border-2 border-slate-300 rounded-full flex justify-center p-2">
+            <div className="w-1.5 h-1.5 bg-slate-400 rounded-full"></div>
+          </div>
+        </div>
+      </section>
+
+      {/* Main Content Area */}
+      <main id="learning-section" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 w-full">
+        {/* Features / Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-32">
+          {[
+            { icon: BookOpen, title: 'למידה חכמה', desc: 'גישה ישירה ומותאמת אישית לכל חומרי הלימוד שלך.' },
+            { icon: Smartphone, title: 'חווית מובייל', desc: 'ממשק מלוטש שעובד מושלם מכל מכשיר, בכל זמן.' },
+            { icon: CheckCircle, title: 'מערכת בחינות', desc: 'בחינות אינטראקטיביות המדמות שיחה טבעית וממוקדת.' }
+          ].map((feature, i) => (
+            <div key={i} className="group card-hover p-8 border-none bg-white/50 backdrop-blur-sm hover:bg-white transition-all duration-500">
+              <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500 shadow-xl shadow-slate-900/10">
+                <feature.icon className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-extrabold text-slate-900 mb-3">{feature.title}</h3>
+              <p className="text-slate-600 leading-relaxed">{feature.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Learning Materials Header */}
+        <div className="space-y-16">
+          <div className="flex flex-col items-center text-center gap-6">
+            <h3 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight">
               תכני לימוד ושיעורים
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap justify-center gap-3 p-1.5 bg-slate-100 rounded-2xl">
               <button
                 onClick={() => setSelectedProgramId('all')}
-                className={`text-xs font-semibold px-4 py-2 rounded-lg transition-colors ${
+                className={`text-sm font-bold px-6 py-3 rounded-xl transition-all duration-300 ${
                   selectedProgramId === 'all'
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    ? 'bg-white text-slate-900 shadow-md'
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 כל השיעורים
@@ -172,10 +203,10 @@ const HomePage = () => {
                 <button
                   key={program.id}
                   onClick={() => setSelectedProgramId(program.id)}
-                  className={`text-xs font-semibold px-4 py-2 rounded-lg transition-colors ${
+                  className={`text-sm font-bold px-6 py-3 rounded-xl transition-all duration-300 ${
                     selectedProgramId === program.id
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                      ? 'bg-white text-slate-900 shadow-md'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   {program.title}
@@ -184,145 +215,184 @@ const HomePage = () => {
             </div>
           </div>
 
+          {/* Featured Lesson Section */}
           {weeklyLessons.length > 0 && currentWeeklyLesson && (
-            <div className="bg-slate-100 rounded-2xl p-6 border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="space-y-1">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">השיעור השבועי הנוכחי</span>
-                <h4 className="text-xl font-bold text-slate-900">{currentWeeklyLesson.title}</h4>
-                {currentWeeklyLesson.parasha && (
-                  <p className="text-sm text-slate-600">פרשת השבוע: {currentWeeklyLesson.parasha}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-3 w-full md:w-auto">
-                {currentWeeklyLesson.materials[0] && (
-                  <a
-                    href={currentWeeklyLesson.materials[0].fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn-primary text-sm flex items-center justify-center gap-2 py-2.5 w-full md:w-auto"
-                  >
-                    <Download className="w-4 h-4" />
-                    הורד חומרי לימוד
-                  </a>
-                )}
-                <select
-                  className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 outline-none focus:ring-1 focus:ring-slate-900 w-full md:w-auto"
-                  onChange={(event) => {
-                    const lesson = weeklyLessons.find((item) => item.id === event.target.value);
-                    if (lesson?.materials[0]?.fileUrl) window.open(lesson.materials[0].fileUrl, '_blank');
-                  }}
-                  defaultValue=""
-                >
-                  <option value="" disabled>שיעורים נוספים לפי פרשה</option>
-                  {weeklyLessons.map((lesson) => (
-                    <option key={lesson.id} value={lesson.id}>{lesson.parasha || lesson.title}</option>
-                  ))}
-                </select>
+            <div className="group relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-8 md:p-12 text-white shadow-2xl shadow-slate-900/20">
+              <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-white/10 to-transparent pointer-events-none"></div>
+              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
+                <div className="space-y-6 flex-1 text-center md:text-right">
+                  <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest text-white/80 border border-white/10">
+                    <Play className="w-3 h-3 fill-current" />
+                    השיעור השבועי
+                  </div>
+                  <h4 className="text-3xl md:text-5xl font-black">{currentWeeklyLesson.title}</h4>
+                  {currentWeeklyLesson.parasha && (
+                    <p className="text-xl text-white/60 font-medium">פרשת {currentWeeklyLesson.parasha}</p>
+                  )}
+                  <div className="flex flex-wrap justify-center md:justify-start gap-4 pt-4">
+                    {currentWeeklyLesson.materials[0] && (
+                      <a
+                        href={currentWeeklyLesson.materials[0].fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-secondary !bg-white !text-slate-900 border-none px-8 py-4 text-base flex items-center gap-2 hover:scale-105 transition-transform"
+                      >
+                        <Download className="w-5 h-5" />
+                        הורד חומרי לימוד
+                      </a>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="w-full md:w-auto min-w-[300px]">
+                  <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 space-y-4">
+                    <p className="text-sm font-bold text-white/40 uppercase tracking-widest">שיעורים קודמים</p>
+                    <div className="space-y-2">
+                      {weeklyLessons.slice(0, 3).map((lesson) => (
+                        <button 
+                          key={lesson.id}
+                          onClick={() => lesson.materials[0]?.fileUrl && window.open(lesson.materials[0].fileUrl, '_blank')}
+                          className="w-full flex items-center justify-between p-4 rounded-2xl hover:bg-white/10 transition-colors text-right"
+                        >
+                          <span className="font-bold text-sm">{lesson.parasha || lesson.title}</span>
+                          <Download className="w-4 h-4 text-white/40" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
             {/* Video & Audio Lessons */}
-            <div className="card space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <h4 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Play className="w-5 h-5 text-slate-900" />
-                  שיעורי שמע ווידאו
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h4 className="text-2xl font-black text-slate-900 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                    <Play className="w-5 h-5" />
+                  </div>
+                  מדיה ושיעורים
                 </h4>
-                <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
-                  {filteredLessons.filter(l => l.videoUrl || l.audioUrl).length} שיעורים
+                <div className="h-px flex-1 bg-slate-100 mx-6 hidden sm:block"></div>
+                <span className="text-xs font-bold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                  {filteredLessons.filter(l => l.videoUrl || l.audioUrl).length} פריטים
                 </span>
               </div>
 
-              {filteredLessons.filter(l => l.videoUrl || l.audioUrl).length === 0 ? (
-                <div className="text-center py-12 text-slate-400 text-sm">
-                  אין שיעורי מולטימדיה זמינים כעת
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredLessons.filter(l => l.videoUrl || l.audioUrl).map((lesson) => (
-                    <div key={lesson.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <h5 className="font-semibold text-slate-900 text-sm md:text-base">{lesson.title}</h5>
-                        {lesson.description && <p className="text-xs text-slate-500">{lesson.description}</p>}
+              <div className="space-y-4">
+                {filteredLessons.filter(l => l.videoUrl || l.audioUrl).length === 0 ? (
+                  <div className="card bg-slate-50 border-dashed border-2 border-slate-200 py-16 text-center text-slate-400 font-medium">
+                    אין שיעורי מולטימדיה זמינים כעת
+                  </div>
+                ) : (
+                  filteredLessons.filter(l => l.videoUrl || l.audioUrl).map((lesson) => (
+                    <div key={lesson.id} className="group card-hover p-5 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                      <div className="flex items-start gap-4 text-right">
+                        <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-slate-900 group-hover:text-white transition-colors duration-300">
+                          {lesson.videoUrl ? <Play className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                        </div>
+                        <div className="space-y-1">
+                          <h5 className="font-bold text-slate-900 text-lg leading-tight">{lesson.title}</h5>
+                          {lesson.description && <p className="text-sm text-slate-500 font-medium">{lesson.description}</p>}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {lesson.videoUrl && (
                           <button
                             onClick={() => setActiveMedia({ title: lesson.title, url: lesson.videoUrl!, type: 'video' })}
-                            className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-medium py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
+                            className="flex-1 sm:flex-none bg-slate-900 text-white text-xs font-bold py-3 px-5 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/10"
                           >
-                            <Play className="w-3.5 h-3.5" />
-                            צפה בשיעור
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                            וידאו
                           </button>
                         )}
                         {lesson.audioUrl && (
                           <button
                             onClick={() => setActiveMedia({ title: lesson.title, url: lesson.audioUrl!, type: 'audio' })}
-                            className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 text-xs font-medium py-2 px-3 rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
+                            className="flex-1 sm:flex-none bg-white border border-slate-200 text-slate-900 text-xs font-bold py-3 px-5 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
                           >
                             <Volume2 className="w-3.5 h-3.5" />
-                            האזן לשיעור
+                            שמע
                           </button>
                         )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </div>
 
             {/* Downloadable Materials */}
-            <div className="card space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <h4 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Download className="w-5 h-5 text-slate-900" />
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h4 className="text-2xl font-black text-slate-900 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                    <Download className="w-5 h-5" />
+                  </div>
                   קבצים להורדה
                 </h4>
-                <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+                <div className="h-px flex-1 bg-slate-100 mx-6 hidden sm:block"></div>
+                <span className="text-xs font-bold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
                   {filteredMaterials.length} קבצים
                 </span>
               </div>
 
-              {filteredMaterials.length === 0 ? (
-                <div className="text-center py-12 text-slate-400 text-sm">
-                  אין קבצים זמינים להורדה כעת
-                </div>
-              ) : (
-                <ul className="space-y-3">
-                  {filteredMaterials.map((material) => (
-                    <li key={material.id} className="flex items-center justify-between p-3 border border-slate-100 bg-slate-50/50 rounded-xl hover:bg-slate-100/50 transition-all duration-150">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-slate-200 rounded-lg flex items-center justify-center font-bold text-slate-700 text-xs tracking-wider">
-                          {material.fileType.toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{material.title}</p>
-                          <p className="text-xs text-slate-500">{(material.fileSize / 1024 / 1024).toFixed(2)} MB</p>
-                        </div>
-                      </div>
+              <div className="space-y-4">
+                {filteredMaterials.length === 0 ? (
+                  <div className="card bg-slate-50 border-dashed border-2 border-slate-200 py-16 text-center text-slate-400 font-medium">
+                    אין קבצים זמינים להורדה כעת
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {filteredMaterials.map((material) => (
                       <a
+                        key={material.id}
                         href={material.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-slate-600 hover:text-slate-900 p-2 hover:bg-slate-200/50 rounded-lg transition-colors"
+                        className="group card-hover p-4 bg-white flex items-center gap-4 text-right hover:border-slate-900/10"
                       >
-                        <Download className="w-4 h-4" />
+                        <div className="w-12 h-12 bg-slate-50 rounded-2xl flex flex-col items-center justify-center shrink-0 group-hover:bg-slate-100 transition-colors">
+                          <span className="text-[10px] font-black text-slate-400 uppercase leading-none mb-0.5">{material.fileType}</span>
+                          <Download className="w-4 h-4 text-slate-600" />
+                        </div>
+                        <div className="min-w-0 overflow-hidden">
+                          <p className="text-sm font-bold text-slate-900 truncate leading-tight">{material.title}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                            {(material.fileSize / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
                       </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 mt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center text-xs text-slate-500">
-          כל הזכויות שמורות למערכת הלמידה והמבחנים.
+      <footer className="bg-white border-t border-slate-100 mt-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8 text-center md:text-right">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
+                <GraduationCap className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-lg font-black tracking-tight text-slate-900">TAMU</h1>
+            </div>
+            <p className="text-sm font-medium text-slate-400">
+              © 2026 כל הזכויות שמורות למערכת הלמידה והמבחנים המתקדמת.
+            </p>
+            <div className="flex items-center gap-6">
+              <a href="#" className="text-xs font-bold text-slate-400 hover:text-slate-900 transition-colors">תנאי שימוש</a>
+              <a href="#" className="text-xs font-bold text-slate-400 hover:text-slate-900 transition-colors">פרטיות</a>
+              <a href="#" className="text-xs font-bold text-slate-400 hover:text-slate-900 transition-colors">צור קשר</a>
+            </div>
+          </div>
         </div>
       </footer>
 
