@@ -33,7 +33,12 @@ const AuthPage = () => {
     // Auto-submit when code is complete (4 digits for voice, 6 for SMS)
     const expectedLength = useVoiceCall ? 4 : 6;
     if (value.length === expectedLength) {
-      handleVerifyCode(e as any);
+      // Use setTimeout to avoid React DOM issues
+      setTimeout(() => {
+        if (code.length === expectedLength) {
+          handleVerifyCode({ preventDefault: () => {} } as any);
+        }
+      }, 0);
     }
   };
 
@@ -47,7 +52,11 @@ const AuthPage = () => {
 
     // Auto-submit if complete
     if (cleanedValue.length === expectedLength) {
-      handleVerifyCode(e as any);
+      setTimeout(() => {
+        if (code.length === expectedLength) {
+          handleVerifyCode({ preventDefault: () => {} } as any);
+        }
+      }, 0);
     }
   };
 
@@ -82,6 +91,7 @@ const AuthPage = () => {
 
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return; // Prevent multiple submissions
     setLoading(true);
     setError('');
 
@@ -89,17 +99,17 @@ const AuthPage = () => {
 
     try {
       const response = await authService.verifyCode(phone, code);
-      
+
       console.log('[AuthPage] Verification response:', response);
-      
+
       if (response.needsRegistration) {
         console.log('[AuthPage] User needs registration, navigating to /register');
         navigate('/register', { state: { phone, returnTo } });
       } else if (response.token && response.user) {
         console.log('[AuthPage] User authenticated, calling login()');
-        
+
         login(response.token, response.user);
-        
+
         console.log('[AuthPage] Navigating to returnTo in 100ms');
         setTimeout(() => {
           navigate(returnTo);
