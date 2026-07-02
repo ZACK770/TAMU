@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { examService } from '../services/exam';
 import { useAuth } from '../hooks/useAuth';
-import { LogOut, Key, Trophy, CheckCircle, Send, Loader2, CheckCheck, User, MoreVertical, Paperclip, Smile } from 'lucide-react';
+import { LogOut, Key, Send, Loader2, CheckCheck, User, MoreVertical, Paperclip, Smile, HelpCircle, Info } from 'lucide-react';
 
 // WhatsApp colors
 const WA_BG = 'bg-[#efe7de]';
@@ -25,9 +25,9 @@ const ExamPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [examCompleted, setExamCompleted] = useState(false);
-  const [score, setScore] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [typing, setTyping] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     console.log('[ExamPage] useEffect running');
@@ -107,6 +107,27 @@ const ExamPage = () => {
     if (!currentQuestion || loading) return;
 
     const answerText = currentQuestion.answers[answerIndex];
+    
+    // Handle special case for "חזרה לדף הביץ" after exam completion
+    if (examCompleted && answerText === 'חזרה לדף הביץ') {
+      navigate('/');
+      return;
+    }
+    
+    // Handle help/about menu responses
+    if (answerText === 'הבנתי, תודה') {
+      setMessages((prev) => [
+        ...prev,
+        { 
+          type: 'answer', 
+          content: answerText, 
+          id: Date.now(),
+          time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+        },
+      ]);
+      return;
+    }
+
     setMessages((prev) => [
       ...prev,
       { 
@@ -139,7 +160,30 @@ const ExamPage = () => {
   const handleCompleteExam = async (sid: string) => {
     try {
       const response = await examService.completeExam(sid);
-      setScore(response.score);
+      
+      // Add score message to chat instead of showing separate page
+      const encouragingMessages = [
+        'כל הכבוד! עבדת נהדר! 🎉',
+        'מדהים! הצלחת להגיע להישג מרשים! ⭐',
+        'יופי! זה הראה הרבה מאמץ והבנה! 🌟',
+        'כל הכבוד על ההשלמה! אתה בדרך הנכונה! 🚀',
+        'מרשים! המשך כך! 💪'
+      ];
+      const randomMessage = encouragingMessages[Math.floor(Math.random() * encouragingMessages.length)];
+      
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: 'question',
+          content: {
+            text: `${randomMessage}\n\nציונך הסופי: ${response.score}%\n\nעכשיו אתה יכול לממש את ההטבות שצברת באזור האישי!`,
+            answers: ['חזרה לדף הביץ']
+          },
+          id: Date.now(),
+          time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+        }
+      ]);
+      
       setExamCompleted(true);
     } catch (err: any) {
       setError(err.response?.data?.error || 'שגיאה בסיום מבחן');
@@ -170,6 +214,38 @@ const ExamPage = () => {
 
   const handleKeypadClear = () => {
     setManualToken('');
+  };
+
+  const handleMenuClick = (option: 'help' | 'about') => {
+    setMenuOpen(false);
+    
+    if (option === 'help') {
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: 'question',
+          content: {
+            text: '📝 **עזרה - מדריך למבחן**\n\n• ניתן לבצע את המבחן רק פעם אחת\n• אם יוצאים מהממשק, לא ניתן יהיה להיכנס שוב\n• בכל שלב יש לבחור את התשובה המתאימה מהאפשרויות\n• המבחן מורכב משאלות על חומר הלימוד\n• בסיום המבחן תקבל/י ציון ותוכל/י לממש הטבות',
+            answers: ['הבנתי, תודה']
+          },
+          id: Date.now(),
+          time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+        }
+      ]);
+    } else if (option === 'about') {
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: 'question',
+          content: {
+            text: '🌟 **אודות טעמו וראו**\n\nאנחנו ארגון גג למודעות יהודית, שמטרתו לקרב ולהטעים את האור והיופי שבחסידות לעם.\n\nעם סיום המבחן, תוכל לממש הטבות שונות שצברת באזור האישי!\n\nבהצלחה! 🚀',
+            answers: ['הבנתי, תודה']
+          },
+          id: Date.now(),
+          time: new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' }).format(new Date())
+        }
+      ]);
+    }
   };
 
   if (!sessionId) {
@@ -280,29 +356,6 @@ const ExamPage = () => {
     );
   }
 
-  if (examCompleted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
-        <div className="card max-w-md w-full text-center animate-scale-in border border-slate-200 shadow-sm bg-white p-8">
-          <div className="w-16 h-16 bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Trophy className="w-6 h-6 text-slate-900" />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-1">המבחן הסתיים</h2>
-          <p className="text-sm text-slate-500 mb-6">כל הכבוד על ההשלמה</p>
-          
-          <div className="bg-slate-50 border border-slate-100 rounded-2xl p-8 mb-6">
-            <div className="text-5xl font-black text-slate-900 mb-1">{score}%</div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">ציונך הסופי</p>
-          </div>
-          
-          <button onClick={() => navigate('/')} className="btn-primary w-full flex items-center justify-center gap-2 py-3">
-            חזרה לדף הבית
-            <CheckCircle className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={`min-h-screen ${WA_BG} flex flex-col font-sans h-screen overflow-hidden`} dir="rtl">
@@ -313,7 +366,7 @@ const ExamPage = () => {
             <User className="w-6 h-6 text-slate-500" />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-base leading-tight">עוזר המבחן של TAMU</span>
+            <span className="font-bold text-base leading-tight">עוזר המבחן של טעמו וראו</span>
             <div className="flex items-center gap-1">
               <div className={`w-2 h-2 rounded-full ${typing ? 'bg-white animate-pulse' : 'bg-[#00e676]'}`} />
               <span className="text-[12px] opacity-90 leading-tight">
@@ -322,8 +375,31 @@ const ExamPage = () => {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-4 opacity-90">
-          <MoreVertical className="w-5 h-5 cursor-pointer" />
+        <div className="flex items-center gap-4 opacity-90 relative">
+          <div className="relative">
+            <MoreVertical 
+              className="w-5 h-5 cursor-pointer hover:bg-white/10 p-1 rounded-full transition-colors" 
+              onClick={() => setMenuOpen(!menuOpen)}
+            />
+            {menuOpen && (
+              <div className="absolute top-8 left-0 bg-white rounded-lg shadow-xl py-2 min-w-[150px] z-50 animate-scale-in">
+                <button
+                  onClick={() => handleMenuClick('help')}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-right"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  עזרה
+                </button>
+                <button
+                  onClick={() => handleMenuClick('about')}
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-right"
+                >
+                  <Info className="w-4 h-4" />
+                  אודות
+                </button>
+              </div>
+            )}
+          </div>
           <button onClick={handleLogout} className="hover:bg-white/10 p-2 rounded-full transition-colors">
             <LogOut className="w-5 h-5" />
           </button>

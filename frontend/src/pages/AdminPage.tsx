@@ -1,12 +1,16 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, X, LogOut, Shield, CheckCircle, Circle, Download, Download as DownloadIcon, FileText, Video, Music } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { adminService, Exam } from '../services/admin';
 import { authService } from '../services/auth';
 import { materialsService, Lesson, StudyProgram } from '../services/materials';
 import { benefitsService, BenefitAdmin } from '../services/benefits';
 import { redemptionsService, RedemptionAdmin } from '../services/redemptions';
 import { DataTable } from '../components/DataTable';
+
+const APP_BASE_URL = 'https://tamu-6suv.onrender.com';
+const buildExamUrl = (tokenCode: string) => `${APP_BASE_URL}/exam?token=${encodeURIComponent(tokenCode)}`;
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -68,7 +72,7 @@ const AdminPage = () => {
   const [showBenefitModal, setShowBenefitModal] = useState(false);
 
   // Tab navigation
-  const [activeTab, setActiveTab] = useState<'exams' | 'lessons' | 'benefits' | 'redemptions'>('exams');
+  const [activeTab, setActiveTab] = useState<'exams' | 'lessons' | 'benefits' | 'redemptions' | 'students'>('exams');
   
   // Exam sub-tabs
   const [examSubTab, setExamSubTab] = useState<'management' | 'tokens' | 'scores'>('management');
@@ -482,6 +486,14 @@ const AdminPage = () => {
                   }`}
                 >
                   מימושים
+                </button>
+                <button
+                  onClick={() => setActiveTab('students')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    activeTab === 'students' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  תלמידים
                 </button>
               </div>
               <button
@@ -956,6 +968,14 @@ const AdminPage = () => {
                               label: 'קוד טוקן',
                               sortable: true,
                               render: (value) => <span className="font-mono font-bold">{value}</span>
+                            },
+                            {
+                              key: 'qrCode',
+                              label: 'QR',
+                              sortable: false,
+                              render: (_, row) => (
+                                <QRCodeCanvas value={buildExamUrl(row.tokenCode)} size={40} level="H" />
+                              )
                             },
                             {
                               key: 'isUsed',
@@ -1543,6 +1563,23 @@ const AdminPage = () => {
                 getRowLink={(row) => `/personal-area?userId=${row.user.id}`}
               />
             )}
+          </div>
+        )}
+
+        {activeTab === 'students' && (
+          <div className="card text-center py-16">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              ניהול תלמידים
+            </h3>
+            <p className="text-gray-500 mb-4">
+              לחץ כאן לעבור לדף ניהול התלמידים
+            </p>
+            <button
+              onClick={() => navigate('/admin/students')}
+              className="btn-primary"
+            >
+              עבור לניהול תלמידים
+            </button>
           </div>
         )}
       </main>

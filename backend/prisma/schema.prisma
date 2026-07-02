@@ -13,10 +13,15 @@ model User {
   fullName        String?
   totalPoints     Int              @default(0)
   availablePoints Int              @default(0)
+  isActive        Boolean          @default(true)
+  adminNotes      String?
+  blockedAt       DateTime?
+  blockedBy       String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @default(now()) @updatedAt
   examSessions    ExamSession[]
   redemptions     UserRedemption[]
+  pointHistory    PointHistory[]
 }
 
 model Exam {
@@ -173,4 +178,19 @@ model ExamAllowedBenefit {
   @@unique([examId, benefitId])
   @@index([examId])
   @@index([benefitId])
+}
+
+model PointHistory {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String
+  amount      Int
+  reason      String?
+  description String?
+  createdAt   DateTime @default(now())
+  createdBy   String?
+
+  @@index([userId])
+  @@index([createdAt])
 }

@@ -220,7 +220,7 @@ export function DataTable<T>({
                 onClick={() => handleRowClick(row)}
               >
                 {columns.map((col) => (
-                  <td key={col.key} className="px-4 py-3 text-sm text-slate-900">
+                  <td key={col.key} className="px-4 py-3 text-sm text-slate-900 text-right">
                     {col.render ? col.render(row[col.key as keyof T], row) : String(row[col.key as keyof T] || '')}
                   </td>
                 ))}

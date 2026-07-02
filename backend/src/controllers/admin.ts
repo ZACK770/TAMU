@@ -457,3 +457,237 @@ export const updateExamAllowedBenefits = async (req: Request, res: Response) => 
     return res.status(500).json({ error: 'Failed to update exam allowed benefits' });
   }
 };
+
+// Student Management Functions
+
+export const getAllStudents = async (req: Request, res: Response) => {
+  try {
+    const { search, status, minPoints, maxPoints, page = 1, limit = 50 } = req.query;
+    
+    const where: any = {};
+    
+    if (search) {
+      where.OR = [
+        { fullName: { contains: search as string, mode: 'insensitive' } },
+        { phone: { contains: search as string } },
+      ];
+    }
+    
+    if (status === 'active') {
+      where.isActive = true;
+    } else if (status === 'blocked') {
+      where.isActive = false;
+    }
+    
+    if (minPoints || maxPoints) {
+      where.availablePoints = {};
+      if (minPoints) where.availablePoints.gte = parseInt(minPoints as string);
+      if (maxPoints) where.availablePoints.lte = parseInt(maxPoints as string);
+    }
+    
+    const [students, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        include: {
+          _count: {
+            select: {
+              examSessions: true,
+              redemptions: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (parseInt(page as string) - 1) * parseInt(limit as string),
+        take: parseInt(limit as string),
+      }),
+      prisma.user.count({ where }),
+    ]);
+    
+    return res.json({
+      students,
+      total,
+      page: parseInt(page as string),
+      limit: parseInt(limit as string),
+      totalPages: Math.ceil(total / parseInt(limit as string)),
+    });
+  } catch (error: any) {
+    logger.error('Error fetching students', { error: error.message });
+    return res.status(500).json({ error: 'Failed to fetch students' });
+  }
+};
+
+export const getStudentById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const student = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        examSessions: {
+          include: {
+            exam: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+          orderBy: { startedAt: 'desc' },
+        },
+        redemptions: {
+          include: {
+            benefit: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+          orderBy: { redeemedAt: 'desc' },
+        },
+        pointHistory: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+    
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+    
+    return res.json(student);
+  } catch (error: any) {
+    logger.error('Error fetching student', { error: error.message });
+    return res.status(500).json({ error: 'Failed to fetch student' });
+  }
+};
+
+export const updateStudent = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { fullName, phone, adminNotes } = req.body;
+    
+    const student = await prisma.user.update({
+      where: { id },
+      data: {
+        ...(fullName !== undefined && { fullName }),
+        ...(phone !== undefined && { phone }),
+        ...(adminNotes !== undefined && { adminNotes }),
+      },
+    });
+    
+    logger.info('Student updated successfully', { studentId: id });
+    return res.json(student);
+  } catch (error: any) {
+    logger.error('Error updating student', { error: error.message });
+    return res.status(500).json({ error: 'Failed to update student' });
+  }
+};
+
+export const blockStudent = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user?.id;
+    
+    const student = await prisma.user.update({
+      where: { id },
+      data: {
+        isActive: false,
+        blockedAt: new Date(),
+        blockedBy: adminId,
+      },
+    });
+    
+    logger.info('Student blocked successfully', { studentId: id, adminId });
+    return res.json(student);
+  } catch (error: any) {
+    logger.error('Error blocking student', { error: error.message });
+    return res.status(500).json({ error: 'Failed to block student' });
+  }
+};
+
+export const unblockStudent = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const student = await prisma.user.update({
+      where: { id },
+      data: {
+        isActive: true,
+        blockedAt: null,
+        blockedBy: null,
+      },
+    });
+    
+    logger.info('Student unblocked successfully', { studentId: id });
+    return res.json(student);
+  } catch (error: any) {
+    logger.error('Error unblocking student', { error: error.message });
+    return res.status(500).json({ error: 'Failed to unblock student' });
+  }
+};
+
+export const adjustStudentPoints = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type, amount, reason, description } = req.body;
+    const adminId = req.user?.id;
+    
+    if (!type || !amount || !reason) {
+      return res.status(400).json({ error: 'Missing required fields: type, amount, reason' });
+    }
+    
+    if (!['manual_add', 'manual_subtract'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid type. Must be manual_add or manual_subtract' });
+    }
+    
+    const student = await prisma.user.findUnique({ where: { id } });
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+    
+    // Update points
+    const pointChange = type === 'manual_add' ? amount : -amount;
+    const updatedStudent = await prisma.user.update({
+      where: { id },
+      data: {
+        totalPoints: { increment: pointChange },
+        availablePoints: { increment: pointChange },
+      },
+    });
+    
+    // Record in history
+    await prisma.pointHistory.create({
+      data: {
+        userId: id,
+        type,
+        amount: pointChange,
+        reason,
+        description,
+        createdBy: adminId,
+      },
+    });
+    
+    logger.info('Student points adjusted successfully', { studentId: id, type, amount, adminId });
+    return res.json(updatedStudent);
+  } catch (error: any) {
+    logger.error('Error adjusting student points', { error: error.message });
+    return res.status(500).json({ error: 'Failed to adjust student points' });
+  }
+};
+
+export const deleteStudent = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    await prisma.user.delete({
+      where: { id },
+    });
+    
+    logger.info('Student deleted successfully', { studentId: id });
+    return res.json({ message: 'Student deleted successfully' });
+  } catch (error: any) {
+    logger.error('Error deleting student', { error: error.message });
+    return res.status(500).json({ error: 'Failed to delete student' });
+  }
+};

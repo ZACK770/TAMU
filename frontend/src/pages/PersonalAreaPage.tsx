@@ -1,22 +1,28 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Award, Gift, LogOut, Trophy } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Award, Gift, LogOut, Trophy, ArrowLeft } from 'lucide-react';
 import { examService, ExamHistoryResponse } from '../services/exam';
 import { authService } from '../services/auth';
 import { benefitsService, Benefit } from '../services/benefits';
 import { redemptionsService, Redemption } from '../services/redemptions';
 import { statsService, MyStats } from '../services/stats';
+import { studentsService, StudentDetail } from '../services/students';
 import { DataTable } from '../components/DataTable';
 
 type TabType = 'exams' | 'benefits' | 'redemptions';
 
 const PersonalAreaPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const userId = searchParams.get('userId');
+  const isViewingOtherUser = !!userId;
+  
   const [activeTab, setActiveTab] = useState<TabType>('exams');
   const [history, setHistory] = useState<ExamHistoryResponse | null>(null);
   const [stats, setStats] = useState<MyStats | null>(null);
   const [benefits, setBenefits] = useState<Benefit[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
+  const [studentData, setStudentData] = useState<StudentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -29,16 +35,54 @@ const PersonalAreaPage = () => {
 
     const loadData = async () => {
       try {
-        const [historyData, statsData, benefitsData, redemptionsData] = await Promise.all([
-          examService.getMyHistory(),
-          statsService.getMyStats(),
-          benefitsService.getAvailable(),
-          redemptionsService.getMyRedemptions(),
-        ]);
-        setHistory(historyData);
-        setStats(statsData);
-        setBenefits(benefitsData);
-        setRedemptions(redemptionsData);
+        if (isViewingOtherUser && userId) {
+          // Admin viewing another user's profile
+          const student = await studentsService.getStudentById(userId);
+          setStudentData(student);
+          
+          // Convert student data to match the expected format
+          const convertedHistory: ExamHistoryResponse = {
+            availablePoints: student.availablePoints,
+            totalPoints: student.totalPoints,
+            exams: student.examSessions.map(session => ({
+              sessionId: session.id,
+              examId: session.exam.id,
+              examTitle: session.exam.title,
+              score: session.score || 0,
+              earnedPoints: session.earnedPoints,
+              completedAt: session.completedAt || new Date().toISOString(),
+              questionStats: null, // Not available in student data
+              studyProgram: null, // Not available in student data
+            }))
+          };
+          
+          const convertedStats: MyStats = {
+            totalExams: student.examSessions.filter(s => s.isCompleted).length,
+            averageScore: student.examSessions
+              .filter(s => s.isCompleted && s.score !== null)
+              .reduce((sum, s) => sum + (s.score || 0), 0) / 
+              (student.examSessions.filter(s => s.isCompleted && s.score !== null).length || 1),
+            pointsSpent: student.redemptions.reduce((sum, r) => sum + r.pointsUsed, 0),
+          };
+          
+          setHistory(convertedHistory);
+          setStats(convertedStats);
+          setRedemptions(student.redemptions);
+          // Don't load benefits for other users
+          setBenefits([]);
+        } else {
+          // Load current user's data
+          const [historyData, statsData, benefitsData, redemptionsData] = await Promise.all([
+            examService.getMyHistory(),
+            statsService.getMyStats(),
+            benefitsService.getAvailable(),
+            redemptionsService.getMyRedemptions(),
+          ]);
+          setHistory(historyData);
+          setStats(statsData);
+          setBenefits(benefitsData);
+          setRedemptions(redemptionsData);
+        }
       } catch (err: any) {
         setError(err.response?.data?.error || 'שגיאה בטעינת האיזור האישי');
       } finally {
@@ -47,7 +91,7 @@ const PersonalAreaPage = () => {
     };
 
     loadData();
-  }, [navigate]);
+  }, [navigate, isViewingOtherUser, userId]);
 
   const handleLogout = () => {
     authService.logout();
@@ -98,16 +142,38 @@ const PersonalAreaPage = () => {
     <div className="min-h-screen px-4 py-8" dir="rtl">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-bold text-slate-900 font-bold">האזור האישי</h1>
-            <p className="text-gray-600 mt-2">הציונים, הנקודות וההטבות שלך במקום אחד</p>
+          <div className="flex items-center gap-4">
+            {isViewingOtherUser && (
+              <button
+                onClick={() => navigate('/admin/students')}
+                className="btn-secondary p-2"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            <div>
+              <h1 className="text-4xl font-bold text-slate-900 font-bold">
+                {isViewingOtherUser ? (studentData?.fullName || 'פרופיל תלמיד') : 'האזור האישי'}
+              </h1>
+              <p className="text-gray-600 mt-2">
+                {isViewingOtherUser 
+                  ? `צפייה בפרופיל של ${studentData?.fullName || studentData?.phone}`
+                  : 'הציונים, הנקודות וההטבות שלך במקום אחד'
+                }
+              </p>
+            </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => navigate('/')} className="btn-secondary">דף הבית</button>
-            <button onClick={handleLogout} className="btn-secondary flex items-center gap-2">
-              <LogOut className="w-4 h-4" />
-              יציאה
-            </button>
+            {!isViewingOtherUser && (
+              <>
+                <button onClick={() => navigate('/')} className="btn-secondary">דף הבית</button>
+                <button onClick={handleLogout} className="btn-secondary flex items-center gap-2">
+                  <LogOut className="w-4 h-4" />
+                  יציאה
+                </button>
+              </>
+            )}
+          </div>
           </div>
         </div>
 

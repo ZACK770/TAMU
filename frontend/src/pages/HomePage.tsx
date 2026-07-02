@@ -62,11 +62,20 @@ const HomePage = () => {
           <div className="flex justify-between items-center py-3 bg-white/90 backdrop-blur-xl border border-violet-100 rounded-2xl mt-4 px-6 shadow-lg shadow-violet-200/30">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/30">
-                <Sparkles className="w-5 h-5 text-white" />
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="white" fillOpacity="0.9"/>
+                  <path d="M12 6L13.5 9.5L17 10L14 13L15 17L12 15L9 17L10 13L7 10L10.5 9.5L12 6Z" fill="url(#grad1)" fillOpacity="0.8"/>
+                  <defs>
+                    <linearGradient id="grad1" x1="12" y1="6" x2="12" y2="17" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#8B5CF6"/>
+                      <stop offset="1" stopColor="#6366F1"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
               </div>
               <div>
-                <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">TAMU</h1>
-                <p className="text-[10px] font-bold text-violet-600 uppercase tracking-widest mt-1">המסע שלך מתחיל כאן</p>
+                <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">טעמו וראו</h1>
+                <p className="text-[10px] font-bold text-violet-600 uppercase tracking-widest mt-1">ארגון גג למודעות יהודית</p>
               </div>
             </div>
             <div className="flex items-center gap-2 md:gap-4">
@@ -177,16 +186,69 @@ const HomePage = () => {
           </div>
         </div>
 
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce hidden md:block">
-          <div className="w-6 h-10 border-2 border-violet-300 rounded-full flex justify-center p-2">
-            <div className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-pulse"></div>
-          </div>
-        </div>
       </section>
 
       {/* Main Content Area */}
       <main id="learning-section" className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 w-full">
+        {/* Testimonials Section */}
+        <div className="mb-32">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-100 to-indigo-100 text-violet-900 px-4 py-1.5 rounded-full text-xs font-bold mb-4 shadow-md shadow-violet-200/50">
+              <Heart className="w-3 h-3" />
+              מה הם אומרים
+            </div>
+            <h3 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
+              סיפורים אמיתיים
+            </h3>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+              אלפי בני נוער שכבר עברו את המסע
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                name: 'עידו סטונדט',
+                role: 'בוגר שלב א\'',
+                quote: 'זה פשוט הפך אותי לאדם אחר. התוכן, האנשים, החוויה - שום דבר לא משווה.',
+                color: 'from-violet-500 to-indigo-500'
+              },
+              {
+                name: 'מאיה לוי',
+                role: 'בוגרת שלב ב\'',
+                quote: 'לא ידעתי שלימוד יכול להיות כל כך מעניין ומחובר למציאות שלי.',
+                color: 'from-pink-500 to-rose-500'
+              },
+              {
+                name: 'יונתן כהן',
+                role: 'בוגר שלב א\'',
+                quote: 'הקהילה כאן היא משהו אחר. כולם רוצים לראות אותך מצליח.',
+                color: 'from-amber-500 to-orange-500'
+              }
+            ].map((testimonial, i) => (
+              <div key={i} className="group relative bg-white rounded-3xl p-8 shadow-lg shadow-violet-100/50 hover:shadow-xl hover:shadow-violet-200/50 transition-all duration-500">
+                <div className="absolute -top-4 right-6 w-8 h-8 bg-gradient-to-br from-violet-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-lg font-serif shadow-lg">
+                  "
+                </div>
+                <div className="mb-6">
+                  <p className="text-lg text-slate-700 leading-relaxed font-medium">
+                    {testimonial.quote}
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${testimonial.color} flex items-center justify-center text-white font-bold text-lg shadow-lg`}>
+                    {testimonial.name[0]}
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900">{testimonial.name}</p>
+                    <p className="text-sm text-slate-500">{testimonial.role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Features / Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-32">
           {[
@@ -411,11 +473,20 @@ const HomePage = () => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-8 text-center md:text-right">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="white" fillOpacity="0.9"/>
+                  <path d="M12 6L13.5 9.5L17 10L14 13L15 17L12 15L9 17L10 13L7 10L10.5 9.5L12 6Z" fill="url(#grad2)" fillOpacity="0.8"/>
+                  <defs>
+                    <linearGradient id="grad2" x1="12" y1="6" x2="12" y2="17" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#8B5CF6"/>
+                      <stop offset="1" stopColor="#6366F1"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
               </div>
               <div>
-                <h1 className="text-xl font-black tracking-tight">TAMU</h1>
-                <p className="text-xs font-bold text-violet-200 uppercase tracking-widest mt-1">המסע שלך מתחיל כאן</p>
+                <h1 className="text-xl font-black tracking-tight">טעמו וראו</h1>
+                <p className="text-xs font-bold text-violet-200 uppercase tracking-widest mt-1">ארגון גג למודעות יהודית</p>
               </div>
             </div>
             <p className="text-sm font-medium text-violet-200">
