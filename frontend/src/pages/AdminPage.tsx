@@ -7,6 +7,7 @@ import { authService } from '../services/auth';
 import { materialsService, Lesson, StudyProgram } from '../services/materials';
 import { benefitsService, BenefitAdmin } from '../services/benefits';
 import { redemptionsService, RedemptionAdmin } from '../services/redemptions';
+import { DataTable } from '../components/DataTable';
 
 const APP_BASE_URL = 'https://tamu-6suv.onrender.com';
 const buildExamUrl = (tokenCode: string) => `${APP_BASE_URL}/exam?token=${encodeURIComponent(tokenCode)}`;
@@ -933,36 +934,6 @@ const AdminPage = () => {
                         </div>
                       </div>
 
-                      {/* Token Filters */}
-                      <div className="flex gap-2 mb-4">
-                        <button
-                          onClick={() => setTokenFilter('all')}
-                          className={`px-3 py-1 rounded-md text-sm ${tokenFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-gray-100 text-slate-600'}`}
-                        >
-                          הכל
-                        </button>
-                        <button
-                          onClick={() => setTokenFilter('used')}
-                          className={`px-3 py-1 rounded-md text-sm ${tokenFilter === 'used' ? 'bg-slate-900 text-white' : 'bg-gray-100 text-slate-600'}`}
-                        >
-                          נוצלו
-                        </button>
-                        <button
-                          onClick={() => setTokenFilter('unused')}
-                          className={`px-3 py-1 rounded-md text-sm ${tokenFilter === 'unused' ? 'bg-slate-900 text-white' : 'bg-gray-100 text-slate-600'}`}
-                        >
-                          זמינים
-                        </button>
-                        <select
-                          value={tokenSort}
-                          onChange={(e) => setTokenSort(e.target.value as 'created' | 'used')}
-                          className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-                        >
-                          <option value="created">מיון לפי יצירה</option>
-                          <option value="used">מיון לפי ניצול</option>
-                        </select>
-                      </div>
-
                       {/* Cost Statistics */}
                       <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="bg-blue-50 rounded-xl p-4">
@@ -982,68 +953,72 @@ const AdminPage = () => {
                       </div>
 
                       {/* Token Table */}
-                      <div className="space-y-2">
-                        {(!Array.isArray(selectedExam.tokens) || selectedExam.tokens.length === 0) ? (
-                          <p className="text-sm text-gray-500 text-center py-4">אין טוקנים למבחן הזה עדיין</p>
-                        ) : (
-                          (() => {
-                            let filteredTokens = Array.isArray(selectedExam.tokens) ? [...selectedExam.tokens] : [];
-                            
-                            // Apply filter
-                            if (tokenFilter === 'used') {
-                              filteredTokens = filteredTokens.filter(t => t.isUsed);
-                            } else if (tokenFilter === 'unused') {
-                              filteredTokens = filteredTokens.filter(t => !t.isUsed);
+                      {(!Array.isArray(selectedExam.tokens) || selectedExam.tokens.length === 0) ? (
+                        <p className="text-sm text-gray-500 text-center py-4">אין טוקנים למבחן הזה עדיין</p>
+                      ) : (
+                        <DataTable
+                          data={selectedExam.tokens}
+                          columns={[
+                            {
+                              key: 'tokenCode',
+                              label: 'קוד טוקן',
+                              sortable: true,
+                              render: (value) => <span className="font-mono font-bold">{value}</span>
+                            },
+                            {
+                              key: 'isUsed',
+                              label: 'סטטוס',
+                              sortable: true,
+                              render: (value) => (
+                                <span className={`text-xs px-3 py-1 rounded-full ${value ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                  {value ? 'נוצל' : 'זמין'}
+                                </span>
+                              )
+                            },
+                            {
+                              key: 'usedAt',
+                              label: 'תאריך ניצול',
+                              sortable: true,
+                              render: (value) => value ? new Date(value).toLocaleString('he-IL') : '-'
+                            },
+                            {
+                              key: 'actions',
+                              label: 'פעולות',
+                              render: (_, row) => (
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    try {
+                                      await adminService.downloadTokenQR(row.id);
+                                      setSystemMessage(`הורדת QR עבור טוקן ${row.tokenCode}`);
+                                    } catch (error) {
+                                      console.error('Failed to download QR:', error);
+                                      setSystemMessage('נכשל בהורדת QR');
+                                    }
+                                  }}
+                                  className="text-slate-900 hover:text-slate-900 p-2 hover:bg-slate-50 rounded-lg transition-colors"
+                                  title="הורד QR code"
+                                >
+                                  <Download className="w-5 h-5" />
+                                </button>
+                              )
                             }
-                            
-                            // Apply sort
-                            if (tokenSort === 'used') {
-                              filteredTokens.sort((a, b) => {
-                                if (!a.usedAt && !b.usedAt) return 0;
-                                if (!a.usedAt) return 1;
-                                if (!b.usedAt) return -1;
-                                return new Date(b.usedAt).getTime() - new Date(a.usedAt).getTime();
-                              });
-                            } else {
-                              filteredTokens.sort((a, b) => b.id.localeCompare(a.id));
+                          ]}
+                          filters={[
+                            {
+                              key: 'isUsed',
+                              type: 'select',
+                              options: [
+                                { value: '', label: 'הכל' },
+                                { value: 'true', label: 'נוצלו' },
+                                { value: 'false', label: 'זמינים' }
+                              ]
                             }
-                            
-                            return filteredTokens.map((token) => (
-                              <div key={token.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-                                <div className="flex items-center gap-4">
-                                  <QRCodeCanvas value={buildExamUrl(token.tokenCode)} size={60} level="H" />
-                                  <div>
-                                    <div className="font-mono text-lg font-bold tracking-wider">{token.tokenCode}</div>
-                                    <div className="text-xs text-gray-500">
-                                      {token.usedAt ? `נוצל בתאריך ${new Date(token.usedAt).toLocaleString('he-IL')}` : 'עדיין לא נוצל'}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-xs px-3 py-1 rounded-full ${token.isUsed ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                    {token.isUsed ? 'נוצל' : 'זמין'}
-                                  </span>
-                                  <button
-                                    onClick={async () => {
-                                      try {
-                                        await adminService.downloadTokenQR(token.id);
-                                        setSystemMessage(`הורדת QR עבור טוקן ${token.tokenCode}`);
-                                      } catch (error) {
-                                        console.error('Failed to download QR:', error);
-                                        setSystemMessage('נכשל בהורדת QR');
-                                      }
-                                    }}
-                                    className="text-slate-900 hover:text-slate-900 p-2 hover:bg-slate-50 rounded-lg transition-colors"
-                                    title="הורד QR code"
-                                  >
-                                    <Download className="w-5 h-5" />
-                                  </button>
-                                </div>
-                              </div>
-                            ));
-                          })()
-                        )}
-                      </div>
+                          ]}
+                          pageSize={50}
+                          sortable={true}
+                        />
+                      )}
                     </div>
                   )}
 
@@ -1081,41 +1056,69 @@ const AdminPage = () => {
                       </div>
 
                       {/* Sessions Table */}
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <h4 className="font-semibold mb-4">רשימת ניסיונות</h4>
-                        {(!Array.isArray(selectedExam.sessions) || selectedExam.sessions.length === 0) ? (
-                          <p className="text-sm text-gray-500 text-center py-4">אין ניסיונות עדיין</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {selectedExam.sessions.map((session) => (
-                              <div key={session.id} className="flex items-center justify-between bg-white rounded-lg p-3">
-                                <div className="flex items-center gap-4">
-                                  <div>
-                                    <p className="font-medium">{session.user?.fullName || session.user?.phone || 'משתמש אנונימי'}</p>
-                                    <p className="text-xs text-gray-500">
-                                      התחיל: {new Date(session.startedAt).toLocaleString('he-IL')}
-                                      {session.completedAt && ` • הסתיים: ${new Date(session.completedAt).toLocaleString('he-IL')}`}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <div className="text-center">
-                                    <p className="text-sm text-gray-500">ציון</p>
-                                    <p className="font-bold text-lg">{session.score !== undefined ? session.score : '-'}</p>
-                                  </div>
-                                  <div className="text-center">
-                                    <p className="text-sm text-gray-500">נקודות</p>
-                                    <p className="font-bold text-lg text-green-600">{session.earnedPoints}</p>
-                                  </div>
-                                  <span className={`text-xs px-3 py-1 rounded-full ${session.isCompleted ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                    {session.isCompleted ? 'הושלם' : 'בתהליך'}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      {(!Array.isArray(selectedExam.sessions) || selectedExam.sessions.length === 0) ? (
+                        <p className="text-sm text-gray-500 text-center py-4">אין ניסיונות עדיין</p>
+                      ) : (
+                        <DataTable
+                          data={selectedExam.sessions}
+                          columns={[
+                            {
+                              key: 'user',
+                              label: 'תלמיד',
+                              sortable: true,
+                              render: (value) => value?.fullName || value?.phone || 'משתמש אנונימי'
+                            },
+                            {
+                              key: 'startedAt',
+                              label: 'התחיל',
+                              sortable: true,
+                              render: (value) => new Date(value).toLocaleString('he-IL')
+                            },
+                            {
+                              key: 'completedAt',
+                              label: 'הסתיים',
+                              sortable: true,
+                              render: (value) => value ? new Date(value).toLocaleString('he-IL') : '-'
+                            },
+                            {
+                              key: 'score',
+                              label: 'ציון',
+                              sortable: true,
+                              render: (value) => value !== undefined ? value : '-'
+                            },
+                            {
+                              key: 'earnedPoints',
+                              label: 'נקודות',
+                              sortable: true,
+                              render: (value) => <span className="font-bold text-green-600">{value}</span>
+                            },
+                            {
+                              key: 'isCompleted',
+                              label: 'סטטוס',
+                              sortable: true,
+                              render: (value) => (
+                                <span className={`text-xs px-3 py-1 rounded-full ${value ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                  {value ? 'הושלם' : 'בתהליך'}
+                                </span>
+                              )
+                            }
+                          ]}
+                          filters={[
+                            {
+                              key: 'isCompleted',
+                              type: 'select',
+                              options: [
+                                { value: '', label: 'הכל' },
+                                { value: 'true', label: 'הושלם' },
+                                { value: 'false', label: 'בתהליך' }
+                              ]
+                            }
+                          ]}
+                          pageSize={50}
+                          sortable={true}
+                          getRowLink={(row) => `/personal-area?userId=${row.userId}`}
+                        />
+                      )}
                     </div>
                   )}
                 </div>
@@ -1147,57 +1150,64 @@ const AdminPage = () => {
                 </button>
               </div>
 
-              <div className="space-y-4">
-                {Array.isArray(lessons) && lessons.map((lesson) => (
-                  <div
-                    key={lesson.id}
-                    className={`card-hover cursor-pointer transition-all duration-200 ${
-                      selectedLesson?.id === lesson.id
-                        ? 'ring-2 ring-slate-900 bg-slate-50'
-                        : ''
-                    }`}
-                    onClick={() => setSelectedLesson(lesson)}
+              {(!Array.isArray(lessons) || lessons.length === 0) ? (
+                <div className="card text-center py-8">
+                  <p className="text-gray-500 mb-4">אין שיעורים עדיין</p>
+                  <button
+                    onClick={() => setShowLessonModal(true)}
+                    className="btn-primary"
                   >
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold">{lesson.title}</h3>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteLesson(lesson.id);
-                        }}
-                        className="text-slate-600 hover:text-slate-900 p-1 hover:bg-slate-100 rounded transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <p className="text-sm text-gray-500">{Array.isArray(lesson.materials) ? lesson.materials.length : 0} חומרים</p>
-                    {lesson.videoUrl && (
-                      <span className="inline-block mt-2 text-xs bg-slate-100 text-slate-900 px-2 py-1 rounded-full">
-                        <Video className="w-3 h-3 inline mr-1" />
-                        וידאו
-                      </span>
-                    )}
-                    {lesson.audioUrl && (
-                      <span className="inline-block mt-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full mr-2">
-                        <Music className="w-3 h-3 inline mr-1" />
-                        אודיו
-                      </span>
-                    )}
-                  </div>
-                ))}
-
-                {(!Array.isArray(lessons) || lessons.length === 0) && (
-                  <div className="card text-center py-8">
-                    <p className="text-gray-500 mb-4">אין שיעורים עדיין</p>
-                    <button
-                      onClick={() => setShowLessonModal(true)}
-                      className="btn-primary"
-                    >
-                      צור שיעור חדש
-                    </button>
-                  </div>
-                )}
-              </div>
+                    צור שיעור חדש
+                  </button>
+                </div>
+              ) : (
+                <DataTable
+                  data={lessons}
+                  columns={[
+                    {
+                      key: 'title',
+                      label: 'כותרת',
+                      sortable: true
+                    },
+                    {
+                      key: 'materials',
+                      label: 'חומרים',
+                      sortable: true,
+                      render: (value) => Array.isArray(value) ? value.length : 0
+                    },
+                    {
+                      key: 'videoUrl',
+                      label: 'וידאו',
+                      sortable: true,
+                      render: (value) => value ? '✓' : '-'
+                    },
+                    {
+                      key: 'audioUrl',
+                      label: 'אודיו',
+                      sortable: true,
+                      render: (value) => value ? '✓' : '-'
+                    },
+                    {
+                      key: 'actions',
+                      label: 'פעולות',
+                      render: (_, row) => (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteLesson(row.id);
+                          }}
+                          className="text-slate-600 hover:text-slate-900 p-1 hover:bg-slate-100 rounded transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )
+                    }
+                  ]}
+                  pageSize={50}
+                  sortable={true}
+                  onRowClick={(row) => setSelectedLesson(row)}
+                />
+              )}
             </div>
 
             {}
@@ -1357,61 +1367,91 @@ const AdminPage = () => {
               </button>
             </div>
 
-            <div className="space-y-4">
-              {Array.isArray(benefits) && benefits.map((benefit) => (
-                <div key={benefit.id} className="bg-gray-50 rounded-xl p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{benefit.title}</h3>
-                      {benefit.description && <p className="text-sm text-gray-600 mt-1">{benefit.description}</p>}
-                      <div className="flex gap-2 mt-2">
-                        <span className="text-sm text-slate-900 font-medium">{benefit.costPoints} נקודות</span>
-                        {benefit.category && <span className="text-xs bg-slate-100 text-slate-900 px-2 py-1 rounded-full">{benefit.category}</span>}
-                        {!benefit.isActive && <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">לא פעיל</span>}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteBenefit(benefit.id)}
-                      className="text-slate-600 hover:text-slate-900 p-1 hover:bg-slate-100 rounded transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <label className="block text-gray-500 mb-1">פעיל</label>
+            {(!Array.isArray(benefits) || benefits.length === 0) ? (
+              <div className="card text-center py-8">
+                <p className="text-gray-500 mb-4">אין הטבות עדיין</p>
+                <button
+                  onClick={() => setShowBenefitModal(true)}
+                  className="btn-primary"
+                >
+                  צור הטבה חדשה
+                </button>
+              </div>
+            ) : (
+              <DataTable
+                data={benefits}
+                columns={[
+                  {
+                    key: 'title',
+                    label: 'כותרת',
+                    sortable: true
+                  },
+                  {
+                    key: 'description',
+                    label: 'תיאור',
+                    sortable: true,
+                    render: (value) => value || '-'
+                  },
+                  {
+                    key: 'costPoints',
+                    label: 'עלות נקודות',
+                    sortable: true
+                  },
+                  {
+                    key: 'category',
+                    label: 'קטגוריה',
+                    sortable: true,
+                    render: (value) => value ? (
+                      <span className="text-xs bg-slate-100 text-slate-900 px-2 py-1 rounded-full">{value}</span>
+                    ) : '-'
+                  },
+                  {
+                    key: 'isActive',
+                    label: 'פעיל',
+                    sortable: true,
+                    render: (value, row) => (
                       <input
                         type="checkbox"
-                        checked={benefit.isActive}
-                        onChange={(e) => handleUpdateBenefit(benefit.id, { isActive: e.target.checked })}
+                        checked={value}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleUpdateBenefit(row.id, { isActive: e.target.checked });
+                        }}
                         className="w-4 h-4"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-gray-500 mb-1">עלות נקודות</label>
-                      <input
-                        type="number"
-                        value={benefit.costPoints}
-                        onChange={(e) => handleUpdateBenefit(benefit.id, { costPoints: Number(e.target.value) })}
-                        className="input-field w-full"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {(!Array.isArray(benefits) || benefits.length === 0) && (
-                <div className="card text-center py-8">
-                  <p className="text-gray-500 mb-4">אין הטבות עדיין</p>
-                  <button
-                    onClick={() => setShowBenefitModal(true)}
-                    className="btn-primary"
-                  >
-                    צור הטבה חדשה
-                  </button>
-                </div>
-              )}
-            </div>
+                    )
+                  },
+                  {
+                    key: 'actions',
+                    label: 'פעולות',
+                    render: (_, row) => (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteBenefit(row.id);
+                        }}
+                        className="text-slate-600 hover:text-slate-900 p-1 hover:bg-slate-100 rounded transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )
+                  }
+                ]}
+                filters={[
+                  {
+                    key: 'isActive',
+                    type: 'select',
+                    options: [
+                      { value: '', label: 'הכל' },
+                      { value: 'true', label: 'פעיל' },
+                      { value: 'false', label: 'לא פעיל' }
+                    ]
+                  }
+                ]}
+                pageSize={50}
+                sortable={true}
+              />
+            )}
           </div>
         )}
 
@@ -1419,55 +1459,98 @@ const AdminPage = () => {
         {activeTab === 'redemptions' && (
           <div className="card">
             <h2 className="text-xl font-bold mb-6">ניהול מימושים</h2>
-            <div className="space-y-4">
-              {Array.isArray(redemptions) && redemptions.map((redemption) => (
-                <div key={redemption.id} className="bg-gray-50 rounded-xl p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-semibold">{redemption.benefit.title}</h3>
-                      <p className="text-sm text-gray-600">{redemption.user.fullName || redemption.user.phone}</p>
-                      <p className="text-sm text-gray-500">{new Date(redemption.redeemedAt).toLocaleDateString('he-IL')}</p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      redemption.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                      redemption.status === 'approved' ? 'bg-green-100 text-green-700' :
-                      'bg-red-100 text-red-700'
-                    }`}>
-                      {redemption.status === 'pending' ? 'בהמתנה' :
-                       redemption.status === 'approved' ? 'אושר' : 'נדחה'}
-                    </span>
-                  </div>
-                  {redemption.status === 'pending' && (
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => handleProcessRedemption(redemption.id, 'approved')}
-                        className="btn-primary flex-1"
-                      >
-                        אשר
-                      </button>
-                      <button
-                        onClick={() => {
-                          const notes = prompt('הערה לדחייה:');
-                          if (notes !== null) handleProcessRedemption(redemption.id, 'rejected', notes);
-                        }}
-                        className="btn-secondary flex-1"
-                      >
-                        דחה
-                      </button>
-                    </div>
-                  )}
-                  {redemption.notes && (
-                    <p className="text-sm text-gray-600 mt-2">הערה: {redemption.notes}</p>
-                  )}
-                </div>
-              ))}
-
-              {(!Array.isArray(redemptions) || redemptions.length === 0) && (
-                <div className="card text-center py-8">
-                  <p className="text-gray-500">אין מימושים עדיין</p>
-                </div>
-              )}
-            </div>
+            {(!Array.isArray(redemptions) || redemptions.length === 0) ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">אין מימושים עדיין</p>
+              </div>
+            ) : (
+              <DataTable
+                data={redemptions}
+                columns={[
+                  {
+                    key: 'benefit',
+                    label: 'הטבה',
+                    sortable: true,
+                    render: (value) => value?.title || '-'
+                  },
+                  {
+                    key: 'user',
+                    label: 'משתמש',
+                    sortable: true,
+                    render: (value) => value?.fullName || value?.phone || '-'
+                  },
+                  {
+                    key: 'redeemedAt',
+                    label: 'תאריך מימוש',
+                    sortable: true,
+                    render: (value) => new Date(value).toLocaleDateString('he-IL')
+                  },
+                  {
+                    key: 'status',
+                    label: 'סטטוס',
+                    sortable: true,
+                    render: (value) => (
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        value === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                        value === 'approved' ? 'bg-green-100 text-green-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {value === 'pending' ? 'בהמתנה' :
+                         value === 'approved' ? 'אושר' : 'נדחה'}
+                      </span>
+                    )
+                  },
+                  {
+                    key: 'notes',
+                    label: 'הערות',
+                    sortable: true,
+                    render: (value) => value || '-'
+                  },
+                  {
+                    key: 'actions',
+                    label: 'פעולות',
+                    render: (_, row) => row.status === 'pending' ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleProcessRedemption(row.id, 'approved');
+                          }}
+                          className="btn-primary text-xs px-3 py-1"
+                        >
+                          אשר
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const notes = prompt('הערה לדחייה:');
+                            if (notes !== null) handleProcessRedemption(row.id, 'rejected', notes);
+                          }}
+                          className="btn-secondary text-xs px-3 py-1"
+                        >
+                          דחה
+                        </button>
+                      </div>
+                    ) : null
+                  }
+                ]}
+                filters={[
+                  {
+                    key: 'status',
+                    type: 'select',
+                    options: [
+                      { value: '', label: 'הכל' },
+                      { value: 'pending', label: 'בהמתנה' },
+                      { value: 'approved', label: 'אושר' },
+                      { value: 'rejected', label: 'נדחה' }
+                    ]
+                  }
+                ]}
+                pageSize={50}
+                sortable={true}
+                getRowLink={(row) => `/personal-area?userId=${row.user.id}`}
+              />
+            )}
           </div>
         )}
       </main>

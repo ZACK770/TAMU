@@ -40,6 +40,11 @@ export const authService = {
     return response.data;
   },
 
+  sendCodeVoice: async (phone: string): Promise<SendCodeResponse> => {
+    const response = await api.post('/api/auth/send-code-voice', { phone });
+    return response.data;
+  },
+
   verifyCode: async (phone: string, code: string): Promise<VerifyCodeResponse> => {
     const response = await api.post('/api/auth/verify-code', { phone, code });
     return response.data;

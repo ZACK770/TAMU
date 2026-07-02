@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '../services/auth';
 import { useAuth } from '../hooks/useAuth';
@@ -15,6 +15,41 @@ const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(0);
+  const [useVoiceCall, setUseVoiceCall] = useState(false);
+  const codeInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus code input when step changes to code
+  useEffect(() => {
+    if (step === 'code' && codeInputRef.current) {
+      codeInputRef.current.focus();
+    }
+  }, [step]);
+
+  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only allow digits
+    const value = e.target.value.replace(/\D/g, '');
+    setCode(value);
+
+    // Auto-submit when code is complete (4 digits for voice, 6 for SMS)
+    const expectedLength = useVoiceCall ? 4 : 6;
+    if (value.length === expectedLength) {
+      handleVerifyCode(e as any);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text');
+    // Only allow digits, max 4 for voice, 6 for SMS
+    const expectedLength = useVoiceCall ? 4 : 6;
+    const cleanedValue = pastedText.replace(/\D/g, '').slice(0, expectedLength);
+    setCode(cleanedValue);
+
+    // Auto-submit if complete
+    if (cleanedValue.length === expectedLength) {
+      handleVerifyCode(e as any);
+    }
+  };
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +57,11 @@ const AuthPage = () => {
     setError('');
 
     try {
-      await authService.sendCode(phone);
+      if (useVoiceCall) {
+        await authService.sendCodeVoice(phone);
+      } else {
+        await authService.sendCode(phone);
+      }
       setStep('code');
       setCountdown(60);
       const timer = setInterval(() => {
@@ -99,9 +138,13 @@ const AuthPage = () => {
             {step === 'phone' ? 'התחברות' : 'אימות קוד'}
           </h2>
           <p className="text-sm text-slate-500">
-            {step === 'phone' 
-              ? 'הכנס מספר טלפון לקבלת קוד אימות'
-              : 'הכנס את קוד האימות שקיבלת'
+            {step === 'phone'
+              ? useVoiceCall
+                ? 'הכנס מספר טלפון לקבלת קוד בשיחה'
+                : 'הכנס מספר טלפון לקבלת קוד אימות'
+              : useVoiceCall
+                ? 'הכנס את 4 הספרות האחרונות של המספר שמתקשר אליך'
+                : 'הכנס את קוד האימות שקיבלת'
             }
           </p>
         </div>
@@ -140,30 +183,51 @@ const AuthPage = () => {
               {loading ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  שולח...
+                  {useVoiceCall ? 'מחייג...' : 'שולח...'}
                 </>
               ) : (
                 <>
-                  שלח קוד אימות
+                  {useVoiceCall ? 'קבל קוד בשיחה טלפונית' : 'שלח קוד אימות'}
                   <ArrowLeft className="w-4 h-4 rotate-180" />
                 </>
               )}
             </button>
+            {!useVoiceCall ? (
+              <button
+                type="button"
+                onClick={() => setUseVoiceCall(true)}
+                className="w-full text-slate-500 hover:text-slate-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors py-2"
+              >
+                <Phone className="w-3.5 h-3.5" />
+                לקבלת אימות בשיחה טלפונית - לחץ כאן
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setUseVoiceCall(false)}
+                className="w-full text-slate-500 hover:text-slate-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors py-2"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                לשליחה ב-SMS במקום
+              </button>
+            )}
           </form>
         ) : (
           <form onSubmit={handleVerifyCode} className="space-y-6">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-2 uppercase tracking-wider">
-                קוד אימות
+                {useVoiceCall ? '4 ספרות אחרונות' : 'קוד אימות'}
               </label>
               <div className="relative">
                 <input
+                  ref={codeInputRef}
                   type="text"
                   value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="הזן קוד"
+                  onChange={handleCodeChange}
+                  onPaste={handlePaste}
+                  placeholder={useVoiceCall ? 'XXXX' : 'הזן קוד'}
                   className="input-field text-center text-xl tracking-[0.25em] font-mono pr-12 focus:ring-slate-900 border-slate-200"
-                  maxLength={6}
+                  maxLength={useVoiceCall ? 4 : 6}
                   required
                 />
                 <Shield className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
@@ -191,17 +255,46 @@ const AuthPage = () => {
                 ניתן לשלוח קוד חדש בעוד {countdown} שניות
               </p>
             ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setStep('phone');
-                  setCode('');
-                }}
-                className="w-full text-slate-700 hover:text-slate-900 text-xs font-bold flex items-center justify-center gap-2 transition-colors py-2"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                שלח קוד חדש
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep('phone');
+                    setCode('');
+                  }}
+                  className="w-full text-slate-700 hover:text-slate-900 text-xs font-bold flex items-center justify-center gap-2 transition-colors py-2"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  שלח קוד חדש
+                </button>
+                {!useVoiceCall ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseVoiceCall(true);
+                      setStep('phone');
+                      setCode('');
+                    }}
+                    className="w-full text-slate-500 hover:text-slate-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors py-2"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    לקבלת אימות בשיחה טלפונית
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseVoiceCall(false);
+                      setStep('phone');
+                      setCode('');
+                    }}
+                    className="w-full text-slate-500 hover:text-slate-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors py-2"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    לשליחה ב-SMS במקום
+                  </button>
+                )}
+              </>
             )}
           </form>
         )}

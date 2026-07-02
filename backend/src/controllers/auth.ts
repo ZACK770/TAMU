@@ -50,6 +50,54 @@ export const sendCode = async (req: Request, res: Response) => {
   }
 };
 
+export const sendCodeVoice = async (req: Request, res: Response) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number is required' });
+    }
+
+    // Validate phone format (Israeli format)
+    const phoneRegex = /^0\d{9}$/;
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({ error: 'Invalid phone number format' });
+    }
+
+    // Send Tzintuk call via Yemot with RAND callerId
+    // The verifyCode returned from Yemot will be the last 4 digits of the caller ID
+    const result = await yemotService.makeCall(phone, 'קוד האימות שלך מופיע על המסך');
+
+    if (!result.success || !result.verifyCode) {
+      logger.warn('Voice call failed, trying SMS fallback', { phone });
+      // Fallback to SMS with random code
+      const code = crypto.randomInt(100000, 999999).toString();
+      const expiresAt = Date.now() + 10 * 60 * 1000;
+      otpCodes.set(phone, { code, expiresAt });
+      await yemotService.sendSMS(phone, `קוד האימות שלך הוא: ${code}`);
+      return res.json({
+        message: 'SMS sent as fallback',
+        expiresIn: 600
+      });
+    }
+
+    // Use the verifyCode from Yemot (last 4 digits of caller ID)
+    const code = result.verifyCode;
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    otpCodes.set(phone, { code, expiresAt });
+
+    logger.info('OTP code sent via voice call with RAND callerId', { phone, verifyCode: code });
+
+    return res.json({
+      message: 'Voice call initiated successfully',
+      expiresIn: 600 // 10 minutes in seconds
+    });
+  } catch (error) {
+    logger.error('Error sending voice code', { error });
+    return res.status(500).json({ error: 'Failed to send voice call' });
+  }
+};
+
 export const verifyCode = async (req: Request, res: Response) => {
   try {
     const { phone, code } = req.body;

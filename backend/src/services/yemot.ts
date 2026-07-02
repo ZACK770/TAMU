@@ -6,6 +6,8 @@ interface YemotResponse {
   message?: string;
   messageCode?: number | null;
   yemotAPIVersion?: string;
+  verifyCode?: string;
+  callerId?: string;
 }
 
 export class YemotService {
@@ -59,22 +61,43 @@ export class YemotService {
     }
   }
 
-  async makeCall(phone: string, text: string): Promise<boolean> {
+  async makeCall(phone: string, text: string): Promise<{ success: boolean; verifyCode?: string }> {
     try {
       const response = await this.callApi('RunTzintuk', {
+        phones: phone,
+        tts_message: text,
+        callerId: 'RAND',
+      });
+
+      if (response.responseStatus === 'OK') {
+        logger.info('Voice call initiated successfully', { phone, verifyCode: response.verifyCode });
+        return { success: true, verifyCode: response.verifyCode };
+      }
+
+      logger.warn('Voice call initiation failed', { phone, response: response.message });
+      return { success: false };
+    } catch (error) {
+      logger.error('Voice call error', { phone, error });
+      return { success: false };
+    }
+  }
+
+  async sendTTSCall(phone: string, text: string): Promise<boolean> {
+    try {
+      const response = await this.callApi('SendTTS', {
         phones: phone,
         tts_message: text,
       });
 
       if (response.responseStatus === 'OK') {
-        logger.info('Voice call initiated successfully', { phone });
+        logger.info('TTS call initiated successfully', { phone });
         return true;
       }
 
-      logger.warn('Voice call initiation failed', { phone, response: response.message });
+      logger.warn('TTS call initiation failed', { phone, response: response.message });
       return false;
     } catch (error) {
-      logger.error('Voice call error', { phone, error });
+      logger.error('TTS call error', { phone, error });
       return false;
     }
   }
