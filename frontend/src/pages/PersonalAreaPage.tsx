@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, CalendarDays, Gift, LogOut, Trophy } from 'lucide-react';
+import { Award, Gift, LogOut, Trophy } from 'lucide-react';
 import { examService, ExamHistoryResponse } from '../services/exam';
 import { authService } from '../services/auth';
 import { benefitsService, Benefit } from '../services/benefits';
 import { redemptionsService, Redemption } from '../services/redemptions';
 import { statsService, MyStats } from '../services/stats';
+import { DataTable } from '../components/DataTable';
 
 type TabType = 'exams' | 'benefits' | 'redemptions';
 
@@ -177,35 +178,64 @@ const PersonalAreaPage = () => {
                   {!Array.isArray(history?.exams) || history.exams.length === 0 ? (
                     <p className="text-gray-500 text-center py-8">עדיין אין מבחנים שהושלמו</p>
                   ) : (
-                    <div className="space-y-4">
-                      {Array.isArray(history?.exams) && history.exams.map((exam) => (
-                        <div key={exam.sessionId} className="rounded-2xl border border-gray-100 p-5 bg-gray-50">
-                          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                            <div>
-                              <h3 className="text-xl font-bold">{exam.examTitle}</h3>
-                              <p className="text-sm text-gray-500 mt-1">מזהה מבחן: {exam.examId}</p>
-                              <p className="text-sm text-gray-500">מזהה ביצוע: {exam.sessionId}</p>
-                              {exam.studyProgram && <p className="text-sm text-slate-800 mt-1">תכנית: {exam.studyProgram.title}</p>}
+                    <DataTable
+                      data={history.exams}
+                      columns={[
+                        {
+                          key: 'examTitle',
+                          label: 'מבחן',
+                          sortable: true
+                        },
+                        {
+                          key: 'examId',
+                          label: 'מזהה מבחן',
+                          sortable: true
+                        },
+                        {
+                          key: 'sessionId',
+                          label: 'מזהה ביצוע',
+                          sortable: true
+                        },
+                        {
+                          key: 'studyProgram',
+                          label: 'תכנית',
+                          sortable: true,
+                          render: (value) => value?.title || '-'
+                        },
+                        {
+                          key: 'score',
+                          label: 'ציון',
+                          sortable: true,
+                          render: (value) => <span className="text-3xl font-bold text-slate-900">{value}%</span>
+                        },
+                        {
+                          key: 'earnedPoints',
+                          label: 'נקודות',
+                          sortable: true,
+                          render: (value) => <span className="font-semibold text-slate-900">+{value}</span>
+                        },
+                        {
+                          key: 'completedAt',
+                          label: 'תאריך',
+                          sortable: true,
+                          render: (value) => new Date(value).toLocaleDateString('he-IL')
+                        },
+                        {
+                          key: 'questionStats',
+                          label: 'סטטיסטיקה',
+                          sortable: true,
+                          render: (value) => value ? (
+                            <div className="flex gap-2 text-sm">
+                              <span className="text-green-600">✓ {value.correct}</span>
+                              <span className="text-red-600">✗ {value.incorrect}</span>
+                              {value.skipped > 0 && <span className="text-gray-500">○ {value.skipped}</span>}
                             </div>
-                            <div className="text-left md:text-right">
-                              <div className="text-3xl font-bold text-slate-900">{exam.score}%</div>
-                              <div className="text-slate-900 font-semibold">+{exam.earnedPoints} נקודות</div>
-                              <div className="text-sm text-gray-500 flex items-center gap-1 justify-end mt-1">
-                                <CalendarDays className="w-4 h-4" />
-                                {new Date(exam.completedAt).toLocaleDateString('he-IL')}
-                              </div>
-                            </div>
-                          </div>
-                          {exam.questionStats && (
-                            <div className="mt-4 flex gap-4 text-sm">
-                              <span className="text-green-600">✓ {exam.questionStats.correct} נכונים</span>
-                              <span className="text-red-600">✗ {exam.questionStats.incorrect} שגויים</span>
-                              {exam.questionStats.skipped > 0 && <span className="text-gray-500">○ {exam.questionStats.skipped} דילגו</span>}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                          ) : '-'
+                        }
+                      ]}
+                      pageSize={50}
+                      sortable={true}
+                    />
                   )}
                 </div>
               )}
@@ -255,38 +285,72 @@ const PersonalAreaPage = () => {
                   {!Array.isArray(redemptions) || redemptions.length === 0 ? (
                     <p className="text-gray-500 text-center py-8">עדיין לא מימשת הטבות</p>
                   ) : (
-                    <div className="space-y-4">
-                      {Array.isArray(redemptions) && redemptions.map((redemption) => (
-                        <div key={redemption.id} className="rounded-2xl border border-gray-100 p-5 bg-gray-50">
-                          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                            <div>
-                              <h3 className="text-xl font-bold">{redemption.benefit.title}</h3>
-                              {redemption.benefit.description && (
-                                <p className="text-sm text-gray-600 mt-1">{redemption.benefit.description}</p>
-                              )}
-                              <div className="text-sm text-gray-500 mt-2 flex items-center gap-1">
-                                <CalendarDays className="w-4 h-4" />
-                                {new Date(redemption.redeemedAt).toLocaleDateString('he-IL')}
-                              </div>
-                            </div>
-                            <div className="text-left md:text-right">
-                              <div className="text-2xl font-bold text-slate-900">-{redemption.pointsUsed} נקודות</div>
-                              <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium mt-2 ${getStatusColor(redemption.status)}`}>
-                                {getStatusText(redemption.status)}
-                              </span>
-                              {redemption.processedAt && (
-                                <div className="text-sm text-gray-500 mt-1">
-                                  עודכן: {new Date(redemption.processedAt).toLocaleDateString('he-IL')}
-                                </div>
-                              )}
-                              {redemption.notes && (
-                                <div className="text-sm text-gray-600 mt-1">הערה: {redemption.notes}</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <DataTable
+                      data={redemptions}
+                      columns={[
+                        {
+                          key: 'benefit',
+                          label: 'הטבה',
+                          sortable: true,
+                          render: (value) => value?.title || '-'
+                        },
+                        {
+                          key: 'benefit',
+                          label: 'תיאור',
+                          sortable: true,
+                          render: (value) => value?.description || '-'
+                        },
+                        {
+                          key: 'redeemedAt',
+                          label: 'תאריך מימוש',
+                          sortable: true,
+                          render: (value) => new Date(value).toLocaleDateString('he-IL')
+                        },
+                        {
+                          key: 'pointsUsed',
+                          label: 'נקודות',
+                          sortable: true,
+                          render: (value) => <span className="text-2xl font-bold text-slate-900">-{value}</span>
+                        },
+                        {
+                          key: 'status',
+                          label: 'סטטוס',
+                          sortable: true,
+                          render: (value) => (
+                            <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(value)}`}>
+                              {getStatusText(value)}
+                            </span>
+                          )
+                        },
+                        {
+                          key: 'processedAt',
+                          label: 'עודכן',
+                          sortable: true,
+                          render: (value) => value ? new Date(value).toLocaleDateString('he-IL') : '-'
+                        },
+                        {
+                          key: 'notes',
+                          label: 'הערות',
+                          sortable: true,
+                          render: (value) => value || '-'
+                        }
+                      ]}
+                      filters={[
+                        {
+                          key: 'status',
+                          type: 'select',
+                          options: [
+                            { value: '', label: 'הכל' },
+                            { value: 'pending', label: 'בהמתנה' },
+                            { value: 'approved', label: 'אושר' },
+                            { value: 'rejected', label: 'נדחה' },
+                            { value: 'completed', label: 'הושלם' }
+                          ]
+                        }
+                      ]}
+                      pageSize={50}
+                      sortable={true}
+                    />
                   )}
                 </div>
               )}

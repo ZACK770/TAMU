@@ -1,16 +1,12 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, X, LogOut, Shield, CheckCircle, Circle, Download, Download as DownloadIcon, FileText, Video, Music } from 'lucide-react';
-import { QRCodeCanvas } from 'qrcode.react';
 import { adminService, Exam } from '../services/admin';
 import { authService } from '../services/auth';
 import { materialsService, Lesson, StudyProgram } from '../services/materials';
 import { benefitsService, BenefitAdmin } from '../services/benefits';
 import { redemptionsService, RedemptionAdmin } from '../services/redemptions';
 import { DataTable } from '../components/DataTable';
-
-const APP_BASE_URL = 'https://tamu-6suv.onrender.com';
-const buildExamUrl = (tokenCode: string) => `${APP_BASE_URL}/exam?token=${encodeURIComponent(tokenCode)}`;
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -76,10 +72,6 @@ const AdminPage = () => {
   
   // Exam sub-tabs
   const [examSubTab, setExamSubTab] = useState<'management' | 'tokens' | 'scores'>('management');
-  
-  // Token filters
-  const [tokenFilter, setTokenFilter] = useState<'all' | 'used' | 'unused'>('all');
-  const [tokenSort, setTokenSort] = useState<'created' | 'used'>('created');
   
   // Benefit search
   const [benefitSearch, setBenefitSearch] = useState('');
