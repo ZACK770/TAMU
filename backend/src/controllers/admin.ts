@@ -3,11 +3,11 @@ import { createRequire } from 'module';
 import prisma from '../utils/prisma.js';
 import logger from '../utils/logger.js';
 import QRCode from 'qrcode';
-import * as XLSX from 'xlsx';
 import { AuthRequest } from '../middleware/auth.js';
 
 const require = createRequire(import.meta.url);
 const { default: archiver } = require('archiver');
+const XLSX = require('xlsx');
 const APP_BASE_URL = 'https://tamu-6suv.onrender.com';
 const buildExamUrl = (tokenCode: string) => `${APP_BASE_URL}/exam?token=${encodeURIComponent(tokenCode)}`;
 
