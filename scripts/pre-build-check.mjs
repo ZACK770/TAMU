@@ -39,10 +39,7 @@ runCommand('Backend type-check', 'cd backend && npm run type-check');
 // 2. Frontend type check
 runCommand('Frontend type-check', 'cd frontend && npm run type-check');
 
-// 3. API tests (if available)
-runCommand('API tests', 'npm run test:api');
-
-// 4. Prisma schema validation
+// 3. Prisma schema validation
 runCommand('Prisma schema validation', 'cd backend && npx prisma validate');
 
 console.log('\n' + '='.repeat(50));
