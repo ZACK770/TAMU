@@ -25,7 +25,9 @@ import {
   Home,
   User,
   Settings,
-  Users
+  Users,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import { materialsService, Lesson, StudyProgram } from '../services/materials';
 
@@ -38,6 +40,8 @@ const JourneyPage = () => {
   const [activeStage, setActiveStage] = useState<'learn' | 'test' | 'redeem' | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeMedia, setActiveMedia] = useState<{ title: string; url: string; type: 'video' | 'audio' } | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isBackgroundMode, setIsBackgroundMode] = useState(false);
 
   useEffect(() => {
     const loadMaterials = async () => {
@@ -654,47 +658,130 @@ const JourneyPage = () => {
 
       {/* Floating Media Player */}
       {activeMedia && (
-        <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 z-50 p-4 animate-scale-in">
-          <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
-            <h5 className="text-sm font-bold text-white truncate pr-4">{activeMedia.title}</h5>
-            <button
-              onClick={() => setActiveMedia(null)}
-              className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-white/10 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="overflow-hidden rounded-xl bg-gradient-to-br from-violet-900 to-indigo-900">
-            {activeMedia.type === 'video' ? (
-              activeMedia.url.includes('youtube') || activeMedia.url.includes('youtu.be') ? (
-                <iframe
-                  src={getEmbedUrl(activeMedia.url)}
-                  title={activeMedia.title}
-                  className="w-full aspect-video border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
-              ) : (
-                <video
-                  src={activeMedia.url}
-                  controls
-                  className="w-full aspect-video"
-                  autoPlay
-                ></video>
-              )
-            ) : (
-              <div className="p-4 bg-gradient-to-br from-violet-900 to-indigo-900 flex flex-col items-center gap-3">
-                <Volume2 className="w-8 h-8 text-white animate-pulse" />
-                <audio
-                  src={activeMedia.url}
-                  controls
-                  className="w-full"
-                  autoPlay
-                ></audio>
+        <>
+          {/* Fullscreen Overlay */}
+          {isFullscreen && (
+            <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-4 animate-scale-in">
+              <div className="w-full max-w-6xl">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-2xl font-black text-white">{activeMedia.title}</h3>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsFullscreen(false)}
+                      className="text-white hover:text-violet-400 p-2 rounded-lg hover:bg-white/10 transition-colors"
+                    >
+                      <Minimize2 className="w-6 h-6" />
+                    </button>
+                    <button
+                      onClick={() => setActiveMedia(null)}
+                      className="text-white hover:text-red-400 p-2 rounded-lg hover:bg-white/10 transition-colors"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                </div>
+                <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-violet-900 to-indigo-900 shadow-2xl shadow-violet-500/30">
+                  {activeMedia.type === 'video' ? (
+                    activeMedia.url.includes('youtube') || activeMedia.url.includes('youtu.be') ? (
+                      <iframe
+                        src={`${getEmbedUrl(activeMedia.url)}?autoplay=0`}
+                        title={activeMedia.title}
+                        className="w-full aspect-video border-0"
+                        allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      ></iframe>
+                    ) : (
+                      <video
+                        src={activeMedia.url}
+                        controls
+                        className="w-full aspect-video"
+                      ></video>
+                    )
+                  ) : (
+                    <div className="p-12 bg-gradient-to-br from-violet-900 to-indigo-900 flex flex-col items-center gap-6">
+                      <div className="w-32 h-32 bg-gradient-to-br from-violet-500 to-indigo-500 rounded-full flex items-center justify-center shadow-2xl shadow-violet-500/50 animate-pulse">
+                        <Volume2 className="w-16 h-16 text-white" />
+                      </div>
+                      <audio
+                        src={activeMedia.url}
+                        controls
+                        className="w-full max-w-2xl"
+                        autoPlay
+                      ></audio>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+
+          {/* Background/Corner Player */}
+          {!isFullscreen && (
+            <div className={`fixed z-50 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/50 animate-scale-in transition-all duration-500 ${
+              isBackgroundMode 
+                ? 'bottom-4 right-4 w-80' 
+                : 'inset-4 md:inset-8'
+            }`}>
+              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                <h5 className="text-sm font-bold text-white truncate pr-4">{activeMedia.title}</h5>
+                <div className="flex items-center gap-1">
+                  {activeMedia.type === 'video' && (
+                    <button
+                      onClick={() => setIsFullscreen(true)}
+                      className="text-slate-400 hover:text-white p-1.5 rounded-md hover:bg-white/10 transition-colors"
+                      title="מסך מלא"
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setIsBackgroundMode(!isBackgroundMode)}
+                    className="text-slate-400 hover:text-white p-1.5 rounded-md hover:bg-white/10 transition-colors"
+                    title={isBackgroundMode ? "הגדל" : "נגן ברקע"}
+                  >
+                    {isBackgroundMode ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
+                  </button>
+                  <button
+                    onClick={() => setActiveMedia(null)}
+                    className="text-slate-400 hover:text-white p-1.5 rounded-md hover:bg-white/10 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="overflow-hidden bg-gradient-to-br from-violet-900 to-indigo-900">
+                {activeMedia.type === 'video' ? (
+                  activeMedia.url.includes('youtube') || activeMedia.url.includes('youtu.be') ? (
+                    <iframe
+                      src={`${getEmbedUrl(activeMedia.url)}?autoplay=0`}
+                      title={activeMedia.title}
+                      className="w-full aspect-video border-0"
+                      allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    ></iframe>
+                  ) : (
+                    <video
+                      src={activeMedia.url}
+                      controls
+                      className="w-full aspect-video"
+                    ></video>
+                  )
+                ) : (
+                  <div className="p-6 bg-gradient-to-br from-violet-900 to-indigo-900 flex flex-col items-center gap-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-indigo-500 rounded-full flex items-center justify-center shadow-xl shadow-violet-500/30 animate-pulse">
+                      <Volume2 className="w-8 h-8 text-white" />
+                    </div>
+                    <audio
+                      src={activeMedia.url}
+                      controls
+                      className="w-full"
+                    ></audio>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
