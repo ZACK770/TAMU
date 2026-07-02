@@ -138,7 +138,7 @@ const PersonalAreaPage = () => {
                   <Gift className="w-8 h-8 text-slate-800" />
                   <h2 className="text-xl font-bold">מימושים</h2>
                 </div>
-                <p className="text-4xl font-bold text-slate-900">{redemptions.length}</p>
+                <p className="text-4xl font-bold text-slate-900">{Array.isArray(redemptions) ? redemptions.length : 0}</p>
                 <p className="text-sm text-gray-600 mt-2">נקודות שמומשו: {stats?.pointsSpent || 0}</p>
               </div>
             </div>
@@ -174,7 +174,7 @@ const PersonalAreaPage = () => {
               {activeTab === 'exams' && (
                 <div>
                   <h2 className="text-2xl font-bold mb-6">היסטוריית מבחנים</h2>
-                  {!history?.exams.length ? (
+                  {!Array.isArray(history?.exams) || history.exams.length === 0 ? (
                     <p className="text-gray-500 text-center py-8">עדיין אין מבחנים שהושלמו</p>
                   ) : (
                     <div className="space-y-4">
@@ -213,7 +213,7 @@ const PersonalAreaPage = () => {
               {activeTab === 'benefits' && (
                 <div>
                   <h2 className="text-2xl font-bold mb-6">הטבות זמינות</h2>
-                  {!benefits.length ? (
+                  {!Array.isArray(benefits) || benefits.length === 0 ? (
                     <p className="text-gray-500 text-center py-8">אין הטבות זמינות כרגע</p>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -252,7 +252,7 @@ const PersonalAreaPage = () => {
               {activeTab === 'redemptions' && (
                 <div>
                   <h2 className="text-2xl font-bold mb-6">היסטוריית מימושים</h2>
-                  {!redemptions.length ? (
+                  {!Array.isArray(redemptions) || redemptions.length === 0 ? (
                     <p className="text-gray-500 text-center py-8">עדיין לא מימשת הטבות</p>
                   ) : (
                     <div className="space-y-4">

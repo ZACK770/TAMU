@@ -277,17 +277,17 @@ const HomePage = () => {
                 </h4>
                 <div className="h-px flex-1 bg-slate-100 mx-6 hidden sm:block"></div>
                 <span className="text-xs font-bold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                  {filteredLessons.filter(l => l.videoUrl || l.audioUrl).length} פריטים
+                  {Array.isArray(filteredLessons) && filteredLessons.filter(l => l.videoUrl || l.audioUrl).length} פריטים
                 </span>
               </div>
 
               <div className="space-y-4">
-                {filteredLessons.filter(l => l.videoUrl || l.audioUrl).length === 0 ? (
+                {!Array.isArray(filteredLessons) || filteredLessons.filter(l => l.videoUrl || l.audioUrl).length === 0 ? (
                   <div className="card bg-slate-50 border-dashed border-2 border-slate-200 py-16 text-center text-slate-400 font-medium">
                     אין שיעורי מולטימדיה זמינים כעת
                   </div>
                 ) : (
-                  filteredLessons.filter(l => l.videoUrl || l.audioUrl).map((lesson) => (
+                  {Array.isArray(filteredLessons) && filteredLessons.filter(l => l.videoUrl || l.audioUrl).map((lesson) => (
                     <div key={lesson.id} className="group card-hover p-5 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                       <div className="flex items-start gap-4 text-right">
                         <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-slate-900 group-hover:text-white transition-colors duration-300">
@@ -335,12 +335,12 @@ const HomePage = () => {
                 </h4>
                 <div className="h-px flex-1 bg-slate-100 mx-6 hidden sm:block"></div>
                 <span className="text-xs font-bold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                  {filteredMaterials.length} קבצים
+                  {Array.isArray(filteredMaterials) ? filteredMaterials.length : 0} קבצים
                 </span>
               </div>
 
               <div className="space-y-4">
-                {filteredMaterials.length === 0 ? (
+                {!Array.isArray(filteredMaterials) || filteredMaterials.length === 0 ? (
                   <div className="card bg-slate-50 border-dashed border-2 border-slate-200 py-16 text-center text-slate-400 font-medium">
                     אין קבצים זמינים להורדה כעת
                   </div>

@@ -167,7 +167,7 @@ const AdminPage = () => {
       await adminService.deleteQuestion(questionId);
       const updatedExam = {
         ...selectedExam,
-        questions: selectedExam.questions.filter(q => q.id !== questionId),
+        questions: Array.isArray(selectedExam.questions) ? selectedExam.questions.filter(q => q.id !== questionId) : [],
       };
 
       setExams(Array.isArray(exams) ? exams.map(e => e.id === selectedExam.id ? updatedExam : e) : []);
@@ -181,7 +181,7 @@ const AdminPage = () => {
   const handleDeleteExam = async (examId: string) => {
     try {
       await adminService.deleteExam(examId);
-      setExams(exams.filter(e => e.id !== examId));
+      setExams(Array.isArray(exams) ? exams.filter(e => e.id !== examId) : []);
       if (selectedExam?.id === examId) {
         setSelectedExam(null);
       }
@@ -277,7 +277,7 @@ const AdminPage = () => {
   const handleDeleteLesson = async (id: string) => {
     try {
       await materialsService.deleteLesson(id);
-      setLessons(lessons.filter(l => l.id !== id));
+      setLessons(Array.isArray(lessons) ? lessons.filter(l => l.id !== id) : []);
       if (selectedLesson?.id === id) setSelectedLesson(null);
       setSystemMessage('שיעור נמחק בהצלחה');
     } catch (error) {
@@ -315,7 +315,7 @@ const AdminPage = () => {
       if (selectedLesson) {
         const updatedLesson = {
           ...selectedLesson,
-          materials: selectedLesson.materials.filter(m => m.id !== id),
+          materials: Array.isArray(selectedLesson.materials) ? selectedLesson.materials.filter(m => m.id !== id) : [],
         };
         setLessons(Array.isArray(lessons) ? lessons.map(l => l.id === selectedLesson.id ? updatedLesson : l) : []);
         setSelectedLesson(updatedLesson);
@@ -365,7 +365,7 @@ const AdminPage = () => {
   const handleDeleteBenefit = async (id: string) => {
     try {
       await benefitsService.delete(id);
-      setBenefits(benefits.filter(b => b.id !== id));
+      setBenefits(Array.isArray(benefits) ? benefits.filter(b => b.id !== id) : []);
       setSystemMessage('הטבה נמחקה בהצלחה');
     } catch (error) {
       console.error('Failed to delete benefit:', error);
@@ -544,7 +544,7 @@ const AdminPage = () => {
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                  <p className="text-sm text-gray-500">{exam.questions.length} שאלות</p>
+                  <p className="text-sm text-gray-500">{Array.isArray(exam.questions) ? exam.questions.length : 0} שאלות</p>
                   {exam.isRandom && (
                     <span className="inline-block mt-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
                       מעורבב
@@ -553,7 +553,7 @@ const AdminPage = () => {
                 </div>
               ))}
 
-              {exams.length === 0 && (
+              {!Array.isArray(exams) || exams.length === 0 && (
                 <div className="card text-center py-8">
                   <p className="text-gray-500 mb-4">אין מבחנים עדיין</p>
                   <button
@@ -729,8 +729,8 @@ const AdminPage = () => {
 
                   {/* Questions List */}
                   <div>
-                    <h3 className="font-semibold mb-4">שאלות ({selectedExam.questions.length})</h3>
-                    {selectedExam.questions.length === 0 ? (
+                    <h3 className="font-semibold mb-4">שאלות ({Array.isArray(selectedExam.questions) ? selectedExam.questions.length : 0})</h3>
+                    {!Array.isArray(selectedExam.questions) || selectedExam.questions.length === 0 ? (
                       <p className="text-gray-500 text-center py-8">אין שאלות עדיין</p>
                     ) : (
                       <div className="space-y-3">
@@ -787,7 +787,7 @@ const AdminPage = () => {
                             const tokens = await adminService.createBulkTokens({ examId: selectedExam.id, count: bulkTokenCount });
                             const updatedExam = {
                               ...selectedExam,
-                              tokens: [...(selectedExam.tokens || []), ...tokens],
+                              tokens: [...(Array.isArray(selectedExam.tokens) ? selectedExam.tokens : []), ...tokens],
                             };
                             setExams(Array.isArray(exams) ? exams.map(ex => ex.id === selectedExam.id ? updatedExam : ex) : []);
                             setSelectedExam(updatedExam);
@@ -802,7 +802,7 @@ const AdminPage = () => {
                         <Plus className="w-5 h-5" />
                         צור טוקנים
                       </button>
-                      {(selectedExam.tokens || []).length > 0 && (
+                      {Array.isArray(selectedExam.tokens) && selectedExam.tokens.length > 0 && (
                         <button
                           onClick={async () => {
                             try {
@@ -830,7 +830,7 @@ const AdminPage = () => {
                   )}
 
                   <div className="space-y-2">
-                    {(selectedExam.tokens || []).length === 0 ? (
+                    {!Array.isArray(selectedExam.tokens) || selectedExam.tokens.length === 0 ? (
                       <p className="text-sm text-gray-500 text-center py-4">אין טוקנים למבחן הזה עדיין</p>
                     ) : (
                       {Array.isArray(selectedExam.tokens) && selectedExam.tokens.map((token) => (
@@ -920,7 +920,7 @@ const AdminPage = () => {
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    <p className="text-sm text-gray-500">{lesson.materials.length} חומרים</p>
+                    <p className="text-sm text-gray-500">{Array.isArray(lesson.materials) ? lesson.materials.length : 0} חומרים</p>
                     {lesson.videoUrl && (
                       <span className="inline-block mt-2 text-xs bg-slate-100 text-slate-900 px-2 py-1 rounded-full">
                         <Video className="w-3 h-3 inline mr-1" />
@@ -936,7 +936,7 @@ const AdminPage = () => {
                   </div>
                 ))}
 
-                {lessons.length === 0 && (
+                {!Array.isArray(lessons) || lessons.length === 0 && (
                   <div className="card text-center py-8">
                     <p className="text-gray-500 mb-4">אין שיעורים עדיין</p>
                     <button
@@ -1016,7 +1016,7 @@ const AdminPage = () => {
                     {/* Materials */}
                     <div>
                       <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-bold">חומרים ({selectedLesson.materials.length})</h3>
+                        <h3 className="text-xl font-bold">חומרים ({Array.isArray(selectedLesson.materials) ? selectedLesson.materials.length : 0})</h3>
                         <button
                           onClick={() => {
                             setNewMaterial({ ...newMaterial, lessonId: selectedLesson.id });
@@ -1029,7 +1029,7 @@ const AdminPage = () => {
                         </button>
                       </div>
 
-                      {selectedLesson.materials.length === 0 ? (
+                      {!Array.isArray(selectedLesson.materials) || selectedLesson.materials.length === 0 ? (
                         <p className="text-gray-500 text-center py-8">אין חומרים לשיעור הזה עדיין</p>
                       ) : (
                         <div className="space-y-3">
@@ -1142,7 +1142,7 @@ const AdminPage = () => {
                 </div>
               ))}
 
-              {benefits.length === 0 && (
+              {!Array.isArray(benefits) || benefits.length === 0 && (
                 <div className="card text-center py-8">
                   <p className="text-gray-500 mb-4">אין הטבות עדיין</p>
                   <button
@@ -1203,7 +1203,7 @@ const AdminPage = () => {
                 </div>
               ))}
 
-              {redemptions.length === 0 && (
+              {!Array.isArray(redemptions) || redemptions.length === 0 && (
                 <div className="card text-center py-8">
                   <p className="text-gray-500">אין מימושים עדיין</p>
                 </div>
