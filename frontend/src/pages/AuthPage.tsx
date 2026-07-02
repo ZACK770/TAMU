@@ -205,16 +205,24 @@ const AuthPage = () => {
             {!useVoiceCall ? (
               <button
                 type="button"
-                onClick={() => setUseVoiceCall(true)}
+                onClick={async () => {
+                  setUseVoiceCall(true);
+                  await handleSendCode({ preventDefault: () => {} } as any);
+                }}
+                disabled={loading}
                 className="w-full text-slate-500 hover:text-slate-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors py-2"
               >
                 <Phone className="w-3.5 h-3.5" />
-                לקבלת אימות בשיחה טלפונית - לחץ כאן
+                לקבלת קוד בשיחה טלפונית - לחץ כאן
               </button>
             ) : (
               <button
                 type="button"
-                onClick={() => setUseVoiceCall(false)}
+                onClick={async () => {
+                  setUseVoiceCall(false);
+                  await handleSendCode({ preventDefault: () => {} } as any);
+                }}
+                disabled={loading}
                 className="w-full text-slate-500 hover:text-slate-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors py-2"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
