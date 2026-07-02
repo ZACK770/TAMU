@@ -199,7 +199,7 @@ const HomePage = () => {
               >
                 כל השיעורים
               </button>
-              {studyPrograms.map((program) => (
+              {Array.isArray(studyPrograms) && studyPrograms.map((program) => (
                 <button
                   key={program.id}
                   onClick={() => setSelectedProgramId(program.id)}
