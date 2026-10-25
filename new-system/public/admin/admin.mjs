@@ -9,9 +9,24 @@ const TABS={admin:['בית','משתתפים','מבחנים','הטבות','הזמ
 function showLogin(){$('#login').hidden=false;$('#tabs').hidden=$('#view').hidden=$('#logout').hidden=true}
 $('#lf').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);const r=await fetch('/api/staff/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(f))});const j=await r.json();if(!r.ok){$('#lerr').textContent=j.error;return}start(j.staff)};
 $('#logout').onclick=async()=>{await fetch('/api/staff/logout',{method:'POST'});location.reload()};
-function start(s){me=s;$('#login').hidden=true;$('#tabs').hidden=$('#view').hidden=$('#logout').hidden=false;$('#who').textContent=s.name+' · '+s.role;
- $('#tabs').innerHTML=TABS[s.role].map(t=>`<button data-t="${t}">${t}</button>`).join('');$('#tabs').onclick=e=>{const t=e.target.dataset.t;if(t)go(t)};go(TABS[s.role][0])}
-function go(t){[...$('#tabs').children].forEach(b=>b.classList.toggle('on',b.dataset.t===t));view.innerHTML='טוען…';PAGES[t]().catch(e=>view.innerHTML=`<p class="err">${esc(e.message)}</p>`)}
+const GROUPS=[['ראשי',['בית','מימוש']],['בחורים',['משתתפים','מוסדות','נקודות']],['תוכן',['מבחנים']],['הטבות וחנויות',['הטבות','הזמנות']],['תקשורת',['הודעות']],['מערכת',['צוות','יומן','סימולטור']]];
+const ROLE_HE={admin:'מנהל',editor:'עורך מבחנים',support:'מוקד',merchant:'מוכר'};
+const INFO={'בית':'תמונת מצב כללית של המערכת','משתתפים':'חיפוש בחורים, עריכה ופעולות על כמה שורות יחד','מוסדות':'רשימת ישיבות, כינויים ושיוך נרשמים חדשים','נקודות':'מאיפה הגיעה כל נקודה – כולל ההיסטוריה מימות','מבחנים':'יצירה, תבניות, פתיחה וסגירה של מבחנים','הטבות':'הטבות, חנויות ומחירים בנקודות','הזמנות':'מעקב הזמנות, מימוש וייצוא','הודעות':'הודעות קוליות מהבחורים ותשובות הצוות','צוות':'אנשי צוות והרשאות','יומן':'כל פעולה שבוצעה במערכת, מי ומתי','סימולטור':'בדיקת הקו הטלפוני מהמחשב, בלי לחייג','מימוש':'הקלידו קוד הזמנה כדי לממש'};
+function start(s){me=s;$('#login').hidden=true;$('#tabs').hidden=$('#view').hidden=$('#logout').hidden=false;$('#who').textContent=s.name+' · '+(ROLE_HE[s.role]||s.role);
+ const allowed=TABS[s.role];
+ $('#tabs').innerHTML=GROUPS.map(([g,ts])=>{const v=ts.filter(t=>allowed.includes(t));return v.length?`<div class="grp"><small>${g}</small>${v.map(t=>`<button data-t="${t}">${t}</button>`).join('')}</div>`:''}).join('');
+ $('#tabs').onclick=e=>{const t=e.target.dataset.t;if(t){go(t);document.body.classList.remove('menu')}};
+ $('#menu').onclick=()=>document.body.classList.toggle('menu');$('#scrim').onclick=()=>document.body.classList.remove('menu');go(allowed[0])}
+function go(t){$('#tabs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));$('#ptitle').textContent=t;$('#pinfo').textContent=INFO[t]||'';view.innerHTML='<div class="loading">טוען…</div>';PAGES[t]().catch(e=>view.innerHTML=`<p class="err">${esc(e.message)}</p>`)}
+function cellVal(r,i){const c=r.cells[i];if(!c)return '';const inp=c.querySelector('input:not([type=checkbox]),select'),s=(inp?inp.value:c.textContent).trim();
+ const d=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:,?\s*(\d{1,2}):(\d{2}))?/);if(d)return new Date(d[3],d[2]-1,d[1],d[4]||0,d[5]||0).getTime();
+ const n=Number(s.replace(/[,\s]/g,''));return s!==''&&!isNaN(n)?n:s}
+function enhance(){view.querySelectorAll('table:not([data-enh])').forEach(tb=>{tb.dataset.enh=1;const head=tb.rows[0];if(!head||!head.querySelector('th'))return;
+ const w=document.createElement('div');w.className='tw';tb.before(w);w.append(tb);const body=()=>[...tb.rows].slice(1);
+ if(body().length>5){const f=document.createElement('input');f.type='search';f.className='tfilter';f.placeholder='סינון מהיר בטבלה…';w.before(f);f.oninput=()=>{const v=f.value.trim().toLowerCase();body().forEach(r=>r.hidden=!!v&&!r.textContent.toLowerCase().includes(v)&&![...r.querySelectorAll('input')].some(x=>x.value.toLowerCase().includes(v)))}}
+ [...head.cells].forEach((th,i)=>{if(!th.textContent.trim())return;th.classList.add('sort');th.title='לחצו למיון';th.onclick=()=>{const dir=th.dataset.dir==='asc'?'desc':'asc';[...head.cells].forEach(x=>delete x.dataset.dir);th.dataset.dir=dir;
+  body().sort((a,b)=>{const x=cellVal(a,i),y=cellVal(b,i),c=typeof x==='number'&&typeof y==='number'?x-y:String(x).localeCompare(String(y),'he',{numeric:true});return dir==='asc'?c:-c}).forEach(r=>r.parentNode.append(r))}})})}
+new MutationObserver(()=>{clearTimeout(enhance._t);enhance._t=setTimeout(enhance,30)}).observe(view,{childList:true,subtree:true});
 const key=()=>crypto.randomUUID();
 const PAGES={
  async 'נקודות'(){return pointsPage('')},
