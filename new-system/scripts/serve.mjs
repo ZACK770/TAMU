@@ -7,6 +7,7 @@ import {handleYouthHttp} from '../lib/youth-http.mjs';
 import {handleTechnolineCall} from '../lib/technoline.mjs';
 import {DomainError} from '../lib/domain.mjs';
 import * as S from '../lib/staff.mjs';
+import {handleAdmin} from '../lib/admin-http.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url)),port=Number(process.env.PORT||10000);
 const origin=process.env.RENDER_EXTERNAL_URL||process.env.PUBLIC_ORIGIN||'http://localhost:'+port;
 if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL required');
@@ -36,9 +37,10 @@ const server=createServer(async(req,res)=>{
    if(path==='/api/staff/login'&&req.method==='POST'){const b=JSON.parse(raw||'{}'),a=await S.staffLogin(db,b.username,b.password);return json(res,200,{staff:a.staff},{'Set-Cookie':S.staffCookie(a.token,secure)})}
    if(path==='/api/staff/logout'){await S.staffLogout(db,request);return json(res,200,{ok:true},{'Set-Cookie':S.staffCookie('',secure,true)})}
    if(path==='/api/staff/me')return json(res,200,{staff:await S.authorizeStaff(db,request)});
+   if(path==='/api/admin'&&req.method==='POST'){const staff=await S.authorizeStaff(db,request),b=JSON.parse(raw||'{}');return json(res,200,await handleAdmin(db,staff,String(b.action||''),b))}
    return json(res,404,{error:'לא נמצא'});
   }
-  const file=resolve(root,'public',path==='/'||path==='/bifnim'||path==='/bifnim/'?'bifnim/index.html':'.'+decodeURIComponent(path));
+  const file=resolve(root,'public',path==='/'||path==='/bifnim'||path==='/bifnim/'?'bifnim/index.html':path==='/admin'||path==='/admin/'?'admin/index.html':'.'+decodeURIComponent(path));
   if(!file.startsWith(resolve(root,'public')+sep)||!existsSync(file)||!statSync(file).isFile())return send(res,404,'Not found');
   send(res,200,readFileSync(file),{'Content-Type':mime[extname(file)]||'application/octet-stream'});
  }catch(e){
