@@ -9,6 +9,7 @@ for(const extra of ['username','total'])columns.set(extra,extra);
 const camel=row=>{if(!row)return row;const out={};for(const [k,v] of Object.entries(row))out[columns.get(k)||k]=v;return out};
 export function translate(query){
  let n=0,q=query.replace(/\?/g,()=>'$'+(++n));
+ q=q.replace(/\bAS ([A-Za-z_][A-Za-z0-9_]*)\b/g,(m,a)=>a===a.toLowerCase()?m:`AS "${a}"`);
  if(/^\s*INSERT\s+OR\s+IGNORE\s+INTO/i.test(q))q=q.replace(/INSERT\s+OR\s+IGNORE\s+INTO/i,'INSERT INTO').replace(/;?\s*$/,' ON CONFLICT DO NOTHING');
  return q;
 }
