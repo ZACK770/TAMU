@@ -30,7 +30,9 @@ test('apply is idempotent and legacy passwords log in once, then upgrade',async(
  assert.equal(p.balance,20);assert.equal(p.passwordHash,null);
  assert.equal((await d.prepare("SELECT count(*) n FROM legacy WHERE kind='points_log'").bind().first()).n,1);
  assert.equal((await d.prepare("SELECT count(*) n FROM legacy WHERE kind='password'").bind().first()).n,3);
- assert.equal((await d.prepare('SELECT balance FROM participants WHERE nationalId=?').bind('000000018').first()).balance,0);
+ const debtor=await d.prepare('SELECT * FROM participants WHERE nationalId=?').bind('000000018').first();assert.equal(debtor.balance,0);assert.equal(debtor.debt,20);
+ await D.adjustPoints(d,debtor.id,15,'מבחן','test','d1');await D.adjustPoints(d,debtor.id,15,'מבחן','test','d2');
+ const after=await d.prepare('SELECT * FROM participants WHERE nationalId=?').bind('000000018').first();assert.equal(after.debt,0);assert.equal(after.balance,10);
  await assert.rejects(D.login(d,'123456782','1111'),/שגויים/);
  assert.ok((await D.login(d,'123456782','4321')).token);
  assert.ok((await d.prepare('SELECT passwordHash FROM participants WHERE nationalId=?').bind('123456782').first()).passwordHash);

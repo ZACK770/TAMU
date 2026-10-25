@@ -1,11 +1,11 @@
 -- Local preview schema. Hosted Drizzle migrations must be generated before production deployment.
 PRAGMA foreign_keys=ON;
-CREATE TABLE participants(id TEXT PRIMARY KEY,nationalId TEXT UNIQUE,name TEXT,passwordHash TEXT,recoveryPhone TEXT,institution TEXT,track TEXT DEFAULT 'easy',nextTrack TEXT,trackEffective TEXT,balance INTEGER DEFAULT 0 CONSTRAINT nonnegative_balance CHECK(balance>=0),blocked INTEGER DEFAULT 0,createdAt TEXT);
+CREATE TABLE participants(id TEXT PRIMARY KEY,nationalId TEXT UNIQUE,name TEXT,passwordHash TEXT,recoveryPhone TEXT,institution TEXT,track TEXT DEFAULT 'easy',nextTrack TEXT,trackEffective TEXT,balance INTEGER DEFAULT 0 CONSTRAINT nonnegative_balance CHECK(balance>=0),debt INTEGER NOT NULL DEFAULT 0,blocked INTEGER DEFAULT 0,createdAt TEXT);
 CREATE TABLE exams(id TEXT PRIMARY KEY,title TEXT,materialKey TEXT,week TEXT,track TEXT,kind TEXT,opensAt TEXT,closesAt TEXT,questionCount INTEGER,questions TEXT,published INTEGER DEFAULT 0,createdAt TEXT);
 CREATE TABLE attempts(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),examId TEXT REFERENCES exams(id),materialKey TEXT,snapshot TEXT,completed INTEGER DEFAULT 0,score INTEGER DEFAULT 0,createdAt TEXT,completedAt TEXT,UNIQUE(participantId,materialKey));
 CREATE TABLE answers(id TEXT PRIMARY KEY,attemptId TEXT REFERENCES attempts(id),questionId TEXT,choice INTEGER,points INTEGER,createdAt TEXT,UNIQUE(attemptId,questionId));
 CREATE TABLE ledger(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),delta INTEGER,reason TEXT,reference TEXT UNIQUE,actor TEXT,createdAt TEXT);
-CREATE TRIGGER ledger_apply AFTER INSERT ON ledger BEGIN UPDATE participants SET balance=balance+NEW.delta WHERE id=NEW.participantId; END;
+CREATE TRIGGER ledger_apply AFTER INSERT ON ledger BEGIN UPDATE participants SET balance=balance+NEW.delta-MIN(debt,MAX(NEW.delta,0)),debt=debt-MIN(debt,MAX(NEW.delta,0)) WHERE id=NEW.participantId; END;
 CREATE TRIGGER ledger_no_update BEFORE UPDATE ON ledger BEGIN SELECT RAISE(ABORT,'ledger_immutable'); END;
 CREATE TRIGGER ledger_no_delete BEFORE DELETE ON ledger BEGIN SELECT RAISE(ABORT,'ledger_immutable'); END;
 CREATE TABLE benefits(id TEXT PRIMARY KEY,title TEXT,merchant TEXT,branch TEXT,kind TEXT,cost INTEGER CHECK(cost>0),faceValue INTEGER DEFAULT 0,opensAt TEXT,closesAt TEXT,redeemUntil TEXT,delivery TEXT DEFAULT 'export',active INTEGER DEFAULT 1,createdAt TEXT);

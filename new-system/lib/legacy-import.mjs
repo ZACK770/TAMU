@@ -88,6 +88,10 @@ export async function applyPlan(db,plan,{actor='import:yemot',progress=()=>{}}={
   const hashed=await Promise.all(pw.map(async x=>[crypto.randomUUID(),'yemot',x.key,x.nid,'password',JSON.stringify({hash:await hashPassword(x.pass)}),at]));
   await insertMany(db,'legacy',['id','source','rowKey','nationalId','kind','payload','createdAt'],hashed);
   await insertMany(db,'ledger',['id','participantId','delta','reason','reference','actor','createdAt'],part.filter(p=>p.opening>0).map(p=>[crypto.randomUUID(),ids.get(p.nationalId),p.opening,`יתרת פתיחה מימות (נצבר ${p.earned}, תיקוני מנהל ${p.adjust})`,'yemot:opening:'+p.nationalId,actor,at]));
+  for(const p of part.filter(p=>p.balance<0)){
+   const r=await db.prepare('INSERT OR IGNORE INTO legacy(id,source,rowKey,nationalId,kind,payload,createdAt) VALUES(?,?,?,?,?,?,?)').bind(crypto.randomUUID(),'yemot','debt:'+p.nationalId,p.nationalId,'opening_debt',JSON.stringify({debt:-p.balance,earned:p.earned,adjust:p.adjust}),at).run();
+   if(r?.meta?.changes)await db.prepare('UPDATE participants SET debt=debt+? WHERE id=?').bind(-p.balance,ids.get(p.nationalId)).run();
+  }
   progress('participants',done+=part.length);
  }
  done=0;

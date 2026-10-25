@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS exams(id TEXT PRIMARY KEY,title TEXT,materialKey TEXT
 CREATE TABLE IF NOT EXISTS attempts(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),examId TEXT REFERENCES exams(id),materialKey TEXT,snapshot TEXT,completed INTEGER DEFAULT 0,score INTEGER DEFAULT 0,createdAt TEXT,completedAt TEXT,UNIQUE(participantId,materialKey));
 CREATE TABLE IF NOT EXISTS answers(id TEXT PRIMARY KEY,attemptId TEXT REFERENCES attempts(id),questionId TEXT,choice INTEGER,points INTEGER,createdAt TEXT,UNIQUE(attemptId,questionId));
 CREATE TABLE IF NOT EXISTS ledger(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),delta INTEGER,reason TEXT,reference TEXT UNIQUE,actor TEXT,createdAt TEXT);
-CREATE OR REPLACE FUNCTION ledger_apply_fn() RETURNS trigger AS $$ BEGIN UPDATE participants SET balance=balance+NEW.delta WHERE id=NEW.participantId; RETURN NEW; END $$ LANGUAGE plpgsql;
+ALTER TABLE participants ADD COLUMN IF NOT EXISTS debt INTEGER NOT NULL DEFAULT 0;
+CREATE OR REPLACE FUNCTION ledger_apply_fn() RETURNS trigger AS $$ BEGIN UPDATE participants SET balance=balance+NEW.delta-LEAST(debt,GREATEST(NEW.delta,0)),debt=debt-LEAST(debt,GREATEST(NEW.delta,0)) WHERE id=NEW.participantId; RETURN NEW; END $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS ledger_apply ON ledger; CREATE TRIGGER ledger_apply AFTER INSERT ON ledger FOR EACH ROW EXECUTE FUNCTION ledger_apply_fn();
 DROP TRIGGER IF EXISTS ledger_no_update ON ledger; CREATE TRIGGER ledger_no_update BEFORE UPDATE ON ledger FOR EACH ROW EXECUTE FUNCTION ledger_immutable();
 DROP TRIGGER IF EXISTS ledger_no_delete ON ledger; CREATE TRIGGER ledger_no_delete BEFORE DELETE ON ledger FOR EACH ROW EXECUTE FUNCTION ledger_immutable();

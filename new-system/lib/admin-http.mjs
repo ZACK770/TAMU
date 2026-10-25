@@ -9,7 +9,7 @@ const can={
  support:a=>['overview','participants','participant','messages','reply'].includes(a),
  merchant:a=>['overview','lookupOrder','redeem','merchantOrders'].includes(a)
 };
-const pub=p=>p&&({id:p.id,nationalId:p.nationalId,name:p.name,institution:p.institution,recoveryPhone:p.recoveryPhone,track:p.track,nextTrack:p.nextTrack,trackEffective:p.trackEffective,balance:p.balance,blocked:p.blocked,createdAt:p.createdAt});
+const pub=p=>p&&({id:p.id,nationalId:p.nationalId,name:p.name,institution:p.institution,recoveryPhone:p.recoveryPhone,track:p.track,nextTrack:p.nextTrack,trackEffective:p.trackEffective,balance:p.balance,debt:p.debt,blocked:p.blocked,createdAt:p.createdAt});
 const inScope=(o,scope)=>{const b=JSON.parse(o.snapshot);return b.merchant===scope?.merchant&&(!scope.branch||b.branch===scope.branch)};
 export async function handleAdmin(db,staff,action,b={}){
  if(!can[staff.role]?.(action))fail('אין לך הרשאה לפעולה זו',403);
