@@ -16,7 +16,7 @@ function start(s){me=s;$('#login').hidden=true;$('#tabs').hidden=$('#view').hidd
  const allowed=TABS[s.role];
  $('#tabs').innerHTML=GROUPS.map(([g,ts])=>{const v=ts.filter(t=>allowed.includes(t));return v.length?`<div class="grp"><small>${g}</small>${v.map(t=>`<button data-t="${t}">${t}</button>`).join('')}</div>`:''}).join('');
  $('#tabs').onclick=e=>{const t=e.target.dataset.t;if(t){go(t);document.body.classList.remove('menu')}};
- $('#menu').onclick=()=>document.body.classList.toggle('menu');$('#scrim').onclick=()=>document.body.classList.remove('menu');go(allowed[0])}
+ $('#menu').hidden=false;$('#menu').onclick=()=>document.body.classList.toggle('menu');$('#scrim').onclick=()=>document.body.classList.remove('menu');go(allowed[0])}
 function go(t){$('#tabs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));$('#ptitle').textContent=t;$('#pinfo').textContent=INFO[t]||'';view.innerHTML='<div class="loading">טוען…</div>';PAGES[t]().catch(e=>view.innerHTML=`<p class="err">${esc(e.message)}</p>`)}
 function cellVal(r,i){const c=r.cells[i];if(!c)return '';const inp=c.querySelector('input:not([type=checkbox]),select'),s=(inp?inp.value:c.textContent).trim();
  const d=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:,?\s*(\d{1,2}):(\d{2}))?/);if(d)return new Date(d[3],d[2]-1,d[1],d[4]||0,d[5]||0).getTime();

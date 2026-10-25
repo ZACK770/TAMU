@@ -1,5 +1,5 @@
 :root{--bg:#f5f6fb;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e6e8f0;--brand:#4f46e5;--brand2:#7c3aed;--soft:#eef0ff;--ok:#059669;--bad:#dc2626;--r:14px;--sh:0 1px 2px rgba(15,23,42,.04),0 4px 16px rgba(15,23,42,.06);--nav:236px}
-*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}html,body{overflow-x:hidden}
 body{margin:0;font:15px/1.55 "Segoe UI",system-ui,-apple-system,"Rubik","Assistant",Arial,sans-serif;background:var(--bg);color:var(--ink)}
 header{position:sticky;top:0;z-index:30;display:flex;gap:14px;align-items:center;padding:10px 20px;background:rgba(255,255,255,.85);backdrop-filter:saturate(1.6) blur(12px);border-bottom:1px solid var(--line);min-height:60px}
 .brand{display:flex;flex-direction:column;font-size:17px;line-height:1.1;background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent;min-width:calc(var(--nav) - 40px)}
@@ -41,9 +41,9 @@ audio{height:36px;max-width:100%;vertical-align:middle}
 .loading{color:var(--muted);padding:30px;text-align:center}
 #scrim{display:none}
 @media (max-width:900px){
- :root{--nav:0px}button.icon{display:block}.brand{min-width:0}.ttl p{display:none}#who{display:none}
+ :root{--nav:0px}button.icon:not([hidden]){display:block}.brand{min-width:0}.ttl p{display:none}#who{display:none}
  header{padding:8px 12px;gap:8px}main{padding:14px}
- nav{width:270px;transform:translateX(100%);transition:transform .2s;box-shadow:-8px 0 30px rgba(0,0,0,.12)}
- body.menu nav{transform:none}body.menu #scrim{display:block;position:fixed;inset:60px 0 0;background:rgba(15,23,42,.3);z-index:15}
+ nav{width:270px;display:none;box-shadow:-8px 0 30px rgba(0,0,0,.12)}
+ body.menu nav:not([hidden]){display:block}body.menu #scrim{display:block;position:fixed;inset:60px 0 0;background:rgba(15,23,42,.3);z-index:15}
  .row>*{min-width:100%}.row>button{min-width:0;flex:1}.card{padding:14px}table{font-size:13px}td,th{padding:8px}
 }
