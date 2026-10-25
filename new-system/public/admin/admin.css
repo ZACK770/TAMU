@@ -1,5 +1,5 @@
 :root{--bg:#f5f6fb;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e6e8f0;--brand:#4f46e5;--brand2:#7c3aed;--soft:#eef0ff;--ok:#059669;--bad:#dc2626;--r:14px;--sh:0 1px 2px rgba(15,23,42,.04),0 4px 16px rgba(15,23,42,.06);--nav:236px}
-*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}html,body{overflow-x:hidden}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}html,body{overflow-x:hidden}[hidden]{display:none!important}
 body{margin:0;font:15px/1.55 "Segoe UI",system-ui,-apple-system,"Rubik","Assistant",Arial,sans-serif;background:var(--bg);color:var(--ink)}
 header{position:sticky;top:0;z-index:30;display:flex;gap:14px;align-items:center;padding:10px 20px;background:rgba(255,255,255,.85);backdrop-filter:saturate(1.6) blur(12px);border-bottom:1px solid var(--line);min-height:60px}
 .brand{display:flex;flex-direction:column;font-size:17px;line-height:1.1;background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent;min-width:calc(var(--nav) - 40px)}
