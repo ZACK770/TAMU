@@ -5,17 +5,22 @@ const token=()=>crypto.randomUUID().replaceAll('-','');
 const statement=(db,sql,...args)=>db.prepare(sql).bind(...args);
 const first=(db,sql,...args)=>statement(db,sql,...args).first();
 const prompt=(s,message,min=1,max=1)=>{
- s.field='tv_'+token();s.last={message,min,max};s.response={type:'getDTMF',name:s.field,files:[text(message)],min,max,timeout:15,skipKey:'#',skipValue:'ERROR'};
+ delete s.repeatFiles;s.field='tv_'+token();s.last={message,min,max};s.response={type:'getDTMF',name:s.field,files:[text(message)],min,max,timeout:15,skipKey:'#',skipValue:'ERROR'};
  return s.response;
 };
 const NONE=v=>v===''||v==='ERROR';
 const finish=message=>({type:'simpleMessage',files:[text(message)],addParams:{tv_done:'1'}});
 const MENU='למבחנים הקישו 1. ליתרת נקודות הקישו 2. להזמנת הטבה הקישו 3. להזמנות וביטולים הקישו 4. לשמיעת הודעות הצוות הקישו 5. להשארת הודעה לצוות הקישו 6. לשמיעה חוזרת של התפריט הקישו 0. ליציאה הקישו 9.';
-function menu(s,prefix=''){s.stage='menu';s.miss=0;return prompt(s,prefix+' '+MENU)}
-const again=(s,prefix)=>prompt(s,prefix+s.last.message.replace(/^(לא נקלטה הקשה\. |המקש הזה לא קיים כאן\. )+/,''),s.last.min,s.last.max);
+function menu(s,prefix='',brief=false){s.stage='menu';s.miss=0;return prompt(s,prefix+' '+(brief?'למבחנים הקישו 1. להזמנת הטבה הקישו 3. לתפריט המלא הקישו 0. ליציאה הקישו 9.':MENU))}
+const again=(s,prefix)=>{
+ const previous=s.response,last=s.last,original=s.repeatFiles||previous?.files||[text(last.message)];
+ const response=prompt(s,last.message,last.min,last.max);
+ response.files=[text(prefix),...original];s.repeatFiles=original;
+ return response;
+};
 const validId=id=>/^\d{9}$/.test(id)&&[...id].reduce((t,d,i)=>{const x=Number(d)*(i%2+1);return t+(x>9?x-9:x)},0)%10===0;
 const say=s=>String(s).split('').join(' ');
-const ORDER_STATUS=o=>o.status==='pending'?(o.exportedAt?'הועברה לחנות':'ממתינה'):o.status==='failed'?'בבירור מול החנות':'טופלה';
+const ORDER_STATUS=o=>({pending:o.exportedAt?'הועברה לחנות':'ממתינה להעברה לחנות',exported:'הועברה לחנות וממתינה למימוש',completed:'מומשה',failed:'בבירור מול החנות',cancelled:'בוטלה'}[o.status]||'בבירור מול הצוות');
 async function playMsg(db,s,prefix=''){
  const m=await first(db,'SELECT subject,reply,replyAudioKey,createdAt FROM messages WHERE id=?',s.items[s.idx]);
  const day=new Date(m.createdAt).toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long',timeZone:'Asia/Jerusalem'});
@@ -37,36 +42,39 @@ async function question(db,s,a,pre=''){
  if(!a.question)return menu(s,'לא נמצאה שאלה להמשך. אפשר להשאיר הודעה לצוות במקש 6.');
  s.stage='answer';s.attemptId=a.id;s.questionId=a.question.id;s.optionCount=a.question.options.length;
  const head=pre+(a.question.bonus?'שאלת בונוס. ':'שאלה '+(a.answered+1)+' מתוך '+a.total+'. ');
- const opts=a.question.options.map((o,i)=>'לתשובה '+o+' הקישו '+(i+1)).join('. ')+'.';
+ const opts=a.question.audioIncludesOptions?'':a.question.options.map((o,i)=>'לתשובה '+o+' הקישו '+(i+1)).join('. ')+'.';
  const r=prompt(s,head+(a.question.audioKey?'':(a.question.text||'')+'. ')+opts);
  if(a.question.audioKey?.startsWith('tl:'))r.files=[text(head),{fileId:a.question.audioKey.split(':')[1],extensionId:process.env.TECHNOLINE_AUDIO_EXTENSION||''},text(opts)];
  return r;
 }
 const reloadAttempt=async(db,s)=>D.startAttempt(db,s.pid,(await first(db,'SELECT examId FROM attempts WHERE id=?',s.attemptId)).examId);
 async function openExam(db,s,eid){
- const prev=await first(db,'SELECT completed,score FROM attempts WHERE participantId=? AND examId=?',s.pid,eid);
- if(prev?.completed)return menu(s,'כבר נבחנת על המבחן הזה וקיבלת '+prev.score+' נקודות.');
+ const prev=await first(db,'SELECT * FROM attempts WHERE participantId=? AND examId=?',s.pid,eid);
+ if(prev?.completed){const a=await D.attemptView(db,prev);return menu(s,a.settings.sayPoints===false?'כבר השלמת את המבחן הזה.':'כבר השלמת את המבחן הזה. נזקפו לזכותך '+a.awarded+' נקודות.');}
  const e=await first(db,'SELECT title FROM exams WHERE id=?',eid),a=await D.startAttempt(db,s.pid,eid);
  return question(db,s,a,a.answered?'ממשיכים מהמקום שעצרת. ':'מבחן '+e.title+'. '+a.total+' שאלות. בכל שאלה אפשר להקיש 0 לשמיעה חוזרת, וכוכבית לחזרה לתפריט. ');
 }
 async function examList(db,s,state,prefix=''){
  if(!state.exams.length)return menu(s,prefix+'אין מבחנים פתוחים למסלול שלך כעת.');
- const list=state.exams.slice(0,8);if(list.length===1&&!prefix)return openExam(db,s,list[0].id);
  const done=new Map((await D.rows(db,'SELECT examId,completed FROM attempts WHERE participantId=?',s.pid)).map(r=>[r.examId,r.completed]));
+ const all=[...state.exams].sort((a,b)=>Number(!!done.get(a.id))-Number(!!done.get(b.id))||a.closesAt.localeCompare(b.closesAt)||a.id.localeCompare(b.id));
+ if(all.length===1&&!prefix)return openExam(db,s,all[0].id);
+ s.examPage=Math.min(s.examPage||0,Math.floor((all.length-1)/8));
+ const list=all.slice(s.examPage*8,s.examPage*8+8);s.examMore=all.length>(s.examPage+1)*8;
  s.stage='examSelect';s.items=list.map(e=>e.id);
- return prompt(s,prefix+list.map((e,i)=>'למבחן '+e.title+', '+e.week+(done.get(e.id)?', שכבר הושלם':done.has(e.id)?', שהתחלת':'')+', הקישו '+(i+1)).join('. ')+'. לחזרה לתפריט הקישו 0.');
+ return prompt(s,prefix+list.map((e,i)=>'למבחן '+e.title+', '+e.week+(done.get(e.id)?', שכבר הושלם':done.has(e.id)?', שהתחלת':'')+', הקישו '+(i+1)).join('. ')+'.'+(s.examMore?' למבחנים נוספים הקישו 9.':'')+(s.examPage?' לעמוד הקודם הקישו כוכבית.':'')+' לחזרה לתפריט הקישו 0.');
 }
 function benefitList(s,state,prefix=''){
  if(!state.benefits.length)return menu(s,prefix+'אין הטבות פתוחות להזמנה כעת.');
- const page=s.page||0,all=state.benefits,more=all.length>(page+1)*8,list=all.slice(page*8,page*8+8);
+ const all=state.benefits;const page=s.page=Math.min(s.page||0,Math.floor((all.length-1)/8)),more=all.length>(page+1)*8,list=all.slice(page*8,page*8+8);
  s.stage='benefitSelect';s.items=list.map(b=>b.id);s.more=more;
- return prompt(s,prefix+(page?'':'יש לך '+state.participant.balance+' נקודות. ')+list.map((b,i)=>'להטבה '+b.title+', במחיר '+b.cost+' נקודות ליחידה, הקישו '+(i+1)).join('. ')+'.'+(more?' להטבות נוספות הקישו 9.':'')+' לחזרה לתפריט הקישו 0.');
+ return prompt(s,prefix+(page?'':'יש לך '+state.participant.balance+' נקודות. ')+list.map((b,i)=>'להטבה '+b.title+', במחיר '+b.cost+' נקודות ליחידה, הקישו '+(i+1)).join('. ')+'.'+(more?' להטבות נוספות הקישו 9.':'')+(page?' לעמוד הקודם הקישו כוכבית.':'')+' לחזרה לתפריט הקישו 0.');
 }
 function orderList(s,state,prefix=''){
- const orders=state.orders.filter(o=>o.status!=='cancelled').slice(0,9);
+ const all=state.orders.filter(o=>o.status!=='cancelled');s.orderPage=Math.min(s.orderPage||0,Math.max(0,Math.floor((all.length-1)/8)));const orders=all.slice(s.orderPage*8,s.orderPage*8+8);s.orderMore=all.length>(s.orderPage+1)*8;
  if(!orders.length)return menu(s,prefix+'אין לך הזמנות.');
  s.stage='orderSelect';s.items=orders.map(o=>o.id);
- return prompt(s,prefix+orders.map((o,i)=>'להזמנה של '+JSON.parse(o.snapshot).title+', בכמות '+o.quantity+', '+ORDER_STATUS(o)+', הקישו '+(i+1)).join('. ')+'. לחזרה לתפריט הקישו 0.');
+ return prompt(s,prefix+orders.map((o,i)=>'להזמנה של '+JSON.parse(o.snapshot).title+', בכמות '+o.quantity+', '+ORDER_STATUS(o)+', הקישו '+(i+1)).join('. ')+'.'+(s.orderMore?' להזמנות נוספות הקישו 9.':'')+(s.orderPage?' לעמוד הקודם הקישו כוכבית.':'')+' לחזרה לתפריט הקישו 0.');
 }
 async function greet(db,s,name){
  s.pid=s.pid;s.expires=Date.now()+30*60000;
@@ -83,7 +91,7 @@ const startRecord=(s,stage,message,max=30,min=2)=>{s.stage=stage;s.field='tv_'+t
 const loginPrompt=(s,prefix='')=>{s.stage='nationalId';return prompt(s,prefix+'הקישו תעודת זהות בת 9 ספרות כולל אפסים מובילים. להרשמה חדשה הקישו 0 וסולמית.',1,9)};
 const passPrompt=(s,prefix='')=>{s.stage='password';return prompt(s,prefix+'הקישו את הסיסמה ובסיום סולמית. אם שכחתם את הסיסמה, הקישו כוכבית וסולמית.',1,12)};
 const regPassPrompt=(s,prefix='')=>{s.stage='regPass';return prompt(s,prefix+'בחרו סיסמה של 4 עד 12 ספרות ובסיום סולמית.',4,12)};
-const NO_INPUT_STAGES=new Set(['nationalId','unknownId','password','regId','regPass','regPass2','menu','examSelect','answer','benefitSelect','quantity','confirm','orderSelect','cancelConfirm','recordRetry','phoneConfirm']);
+const NO_INPUT_STAGES=new Set(['nationalId','unknownId','password','regId','regPass','regPass2','menu','examSelect','answer','benefitSelect','quantity','confirm','orderSelect','cancelConfirm','recordRetry','phoneConfirm','msgplay']);
 async function advance(db,s,input,params={}){
  if(NO_INPUT_STAGES.has(s.stage)&&NONE(input)){
   s.miss=(s.miss||0)+1;
@@ -159,10 +167,10 @@ async function advance(db,s,input,params={}){
   s.miss=0;
   if(input==='9'){s.stage='done';return finish('תודה ולהתראות.')}
   if(input==='0')return menu(s,'');
-  if(input==='2'){const b=state.participant.balance;return menu(s,b<0?'יש לך חוב של '+(-b)+' נקודות. החוב יקוזז מהנקודות שתצבור במבחנים הבאים.':'יש לך '+b+' נקודות.')}
-  if(input==='1')return examList(db,s,state);
+  if(input==='2'){const p=state.participant;return menu(s,Number(p.debt)>0?'יש לך חוב של '+p.debt+' נקודות. הוא יקוזז מהנקודות שתצבור במבחנים הבאים.':'יש לך '+p.balance+' נקודות.',true)}
+  if(input==='1'){s.examPage=0;return examList(db,s,state)}
   if(input==='3'){s.page=0;return benefitList(s,state)}
-  if(input==='4')return orderList(s,state);
+  if(input==='4'){s.orderPage=0;return orderList(s,state)}
   if(input==='5'){
    const list=await D.rows(db,"SELECT id,heardAt FROM messages WHERE participantId=? AND (reply<>'' OR replyAudioKey IS NOT NULL) AND (expiresAt IS NULL OR expiresAt>?) ORDER BY createdAt DESC LIMIT 30",s.pid,D.now());
    if(!list.length)return menu(s,'אין הודעות מהצוות.');
@@ -189,6 +197,7 @@ async function advance(db,s,input,params={}){
   return menu(s,'');
  }
  if(s.stage==='msgplay'){
+  if(['0','1','2','3','6'].includes(input))s.miss=0;
   await statement(db,'UPDATE messages SET heardAt=? WHERE id=? AND heardAt IS NULL',D.now(),s.items[s.idx]).run();
   if(input==='0')return menu(s,'');
   if(input==='1')return playMsg(db,s);
@@ -200,11 +209,14 @@ async function advance(db,s,input,params={}){
    s.replySubject='תגובה להודעה: '+(m?.subject||'הודעה מהצוות');
    return startRecord(s,'record','השאירו תגובה לאחר הצליל, עד 30 שניות. בסיום הקישו סולמית.');
   }
+  if(input!=='2')return again(s,'המקש הזה לא קיים כאן. ');
   if(s.idx+1>=s.items.length)return menu(s,'אלו כל ההודעות.');
   s.idx++;return playMsg(db,s);
  }
  if(s.stage==='examSelect'){
   if(input==='0')return menu(s,'');
+  if(input==='9'&&s.examMore){s.examPage++;return examList(db,s,state)}
+  if(input==='*'&&s.examPage){s.examPage--;return examList(db,s,state)}
   const eid=s.items[Number(input)-1];if(!eid)return examList(db,s,state,'המקש הזה לא קיים כאן. ');
   s.miss=0;return openExam(db,s,eid);
  }
@@ -217,6 +229,7 @@ async function advance(db,s,input,params={}){
  }
  if(s.stage==='benefitSelect'){
   if(input==='0')return menu(s,'');
+  if(input==='*'&&s.page){s.page--;return benefitList(s,state)}
   if(input==='9'&&s.more){s.page=(s.page||0)+1;return benefitList(s,state)}
   const bid=s.items[Number(input)-1];const b=state.benefits.find(x=>x.id===bid);if(!b)return benefitList(s,state,'המקש הזה לא קיים כאן. ');
   s.miss=0;const max=Math.floor(state.participant.balance/b.cost);
@@ -236,10 +249,12 @@ async function advance(db,s,input,params={}){
   if(input==='2')return menu(s,'ההזמנה לא בוצעה.');
   if(input!=='1')return again(s,'המקש הזה לא קיים כאן. ');
   const o=await D.placeOrder(db,s.pid,s.benefitId,s.quantity,s.orderKey),p=await D.getParticipant(db,s.pid);
-  return menu(s,'ההזמנה נקלטה. נוכו '+o.total+' נקודות. היתרה שלך עכשיו '+p.balance+' נקודות. את פרטי ההזמנה אפשר לשמוע במקש 4.');
+  return menu(s,'ההזמנה נקלטה. נוכו '+o.total+' נקודות. היתרה שלך עכשיו '+p.balance+' נקודות. את פרטי ההזמנה אפשר לשמוע במקש 4.',true);
  }
  if(s.stage==='orderSelect'){
   if(input==='0')return menu(s,'');
+  if(input==='9'&&s.orderMore){s.orderPage++;return orderList(s,state)}
+  if(input==='*'&&s.orderPage){s.orderPage--;return orderList(s,state)}
   const oid=s.items[Number(input)-1],o=state.orders.find(o=>o.id===oid);if(!o)return orderList(s,state,'המקש הזה לא קיים כאן. ');
   s.miss=0;const b=JSON.parse(o.snapshot),canCancel=o.status==='pending'&&!o.exportedAt&&b.closesAt>D.now();
   const info='הזמנה של '+b.title+', בכמות '+o.quantity+', סך הכול '+o.total+' נקודות. מצב ההזמנה: '+ORDER_STATUS(o)+'. החנות תוכל לאתר אותה לפי תעודת הזהות שלך. ';
@@ -248,7 +263,7 @@ async function advance(db,s,input,params={}){
   return prompt(s,info+'לבקשת ביטול וזיכוי הקישו 1. לחזרה הקישו 2.');
  }
  if(s.stage==='cancelConfirm'){
-  if(input==='1'){await D.cancelOrder(db,s.pid,s.orderId,s.pid);const p=await D.getParticipant(db,s.pid);return menu(s,'ההזמנה בוטלה והנקודות הוחזרו. היתרה שלך עכשיו '+p.balance+' נקודות.')}
+  if(input==='1'){await D.cancelOrder(db,s.pid,s.orderId,s.pid);const p=await D.getParticipant(db,s.pid);return menu(s,'ההזמנה בוטלה והנקודות הוחזרו. היתרה שלך עכשיו '+p.balance+' נקודות.',true)}
   if(input==='2')return orderList(s,state);
   return again(s,'המקש הזה לא קיים כאן. ');
  }

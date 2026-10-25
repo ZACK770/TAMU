@@ -32,7 +32,7 @@ const server=createServer(async(req,res)=>{
    return json(res,200,await handleTechnolineCall(db,params));
   }
   if(path.startsWith('/api/')){
-   const raw=await body(req,path==='/api/admin/audio'?2*1024*1024:path==='/api/admin/booklet-file'?40*1024*1024:1024*1024);
+   const raw=await body(req,path==='/api/admin/audio'?20*1024*1024:path==='/api/admin/booklet-file'?40*1024*1024:1024*1024);
    const request=new Request(url,{method:req.method,headers:{...req.headers,'x-local-client':clientIp(req)},...(['GET','HEAD'].includes(req.method)?{}:{body:raw})});
    if(path.startsWith('/api/youth/')){const out=await handleYouthHttp(db,request,path.slice(5),r=>S.authorizeStaff(db,r));return send(res,out.status,Buffer.from(await out.arrayBuffer()),Object.fromEntries(out.headers))}
    if(path==='/api/staff/login'&&req.method==='POST'){const b=JSON.parse(raw||'{}'),a=await S.staffLogin(db,b.username,b.password);return json(res,200,{staff:a.staff},{'Set-Cookie':S.staffCookie(a.token,secure)})}
@@ -50,7 +50,7 @@ const server=createServer(async(req,res)=>{
     const tl='https://api.tlivr.com/ivrFilesApi.php';
     if(req.method==='GET'){const nm=String(url.searchParams.get('key')||'').split(':')[2]||'';const tid=/^technoline:([A-Za-z0-9]{6,})$/.exec(String(url.searchParams.get('key')||''))?.[1];if(!tid&&!/^q-\d+$/.test(nm))throw new DomainError('קובץ לא תקין');const r=await fetch(tl+'?action=fileDownload&play=1&'+(tid?'audio='+tid:'fileName='+nm+'&extension='+ext)+'&apiKey='+encodeURIComponent(key));if(!String(r.headers.get('content-type')).startsWith('audio'))throw new DomainError('הקובץ לא נמצא',404);return send(res,r.status,Buffer.from(await r.arrayBuffer()),{'Content-Type':r.headers.get('content-type')||'audio/mpeg'})}
     const type=String(url.searchParams.get('type')||'webm').replace(/[^a-z0-9]/g,'').slice(0,5)||'webm';
-    const fd=new FormData();fd.set('extensionId',ext);const nm='q-'+Date.now();fd.set('name',nm);fd.set('checkDuplicate','BACKUP');fd.set('file',new Blob([raw]),'q.'+type);
+    const fd=new FormData();fd.set('extensionId',ext);const nm='q-'+Date.now()+String(crypto.getRandomValues(new Uint32Array(1))[0]).padStart(10,'0');fd.set('name',nm);fd.set('checkDuplicate','BACKUP');fd.set('file',new Blob([raw]),'q.'+type);
     const j=await (await fetch(tl+'?action=uploadFile&apiKey='+encodeURIComponent(key),{method:'POST',body:fd})).json().catch(()=>({}));
     if(j.status!=='OK'||!j.fileId)throw new DomainError('העלאת השמע נכשלה'+(j.reason?': '+j.reason:''),502);
     return json(res,200,{audioKey:'tl:'+j.fileId+':'+nm});
