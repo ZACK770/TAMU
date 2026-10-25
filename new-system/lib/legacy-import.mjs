@@ -3,8 +3,8 @@ import {hashPassword,digest,now} from './domain.mjs';
 const lines=text=>String(text).replace(/^\uFEFF/,'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
 const validId=s=>/^\d{9}$/.test(s);
 
-export function parseListAllInformation(text,passwordIndex=6){
- return lines(text).map((l,i)=>{const c=l.split(',').map(s=>s.trim());return {line:i+1,nationalId:c[0]||'',first:c[2]||'',last:c[3]||'',school:c[5]||'',password:c[passwordIndex]||'',raw:c}}).filter(r=>r.nationalId);
+export function parseListAllInformation(text,passwordIndex=5){
+ return lines(text).map((l,i)=>{const c=l.split(',').map(s=>s.trim());return {line:i+1,nationalId:c[0]||'',first:c[2]||'',last:c[3]||'',school:'',password:c[passwordIndex]||'',raw:c}}).filter(r=>r.nationalId);
 }
 
 export function parsePointsIni(text){

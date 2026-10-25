@@ -16,7 +16,7 @@ export async function handleAdmin(db,staff,action,b={}){
  const actor=staff.id,t=D.now();
  switch(action){
   case 'overview':return {staff,counts:staff.role==='merchant'?{}:(await q(db,"SELECT (SELECT COUNT(*) FROM participants) AS participants,(SELECT COUNT(*) FROM orders WHERE status='pending') AS pendingOrders,(SELECT COUNT(*) FROM messages WHERE status='open') AS openMessages,(SELECT COUNT(*) FROM exams WHERE published=1 AND opensAt<=? AND closesAt>?) AS activeExams",t,t).first())};
-  case 'participants':{const s='%'+String(b.search||'').trim()+'%';return {participants:(await rows(db,'SELECT * FROM participants WHERE nationalId LIKE ? OR name LIKE ? ORDER BY createdAt DESC LIMIT 100',s,s)).map(pub)}}
+  case 'participants':{const s='%'+String(b.search||'').trim()+'%',off=Math.max(0,Math.trunc(Number(b.page)||0))*100;const total=Number((await q(db,'SELECT COUNT(*) AS n FROM participants WHERE nationalId LIKE ? OR name LIKE ?',s,s).first()).n);return {total,participants:(await rows(db,'SELECT * FROM participants WHERE nationalId LIKE ? OR name LIKE ? ORDER BY name,nationalId LIMIT 100 OFFSET ?',s,s,off)).map(pub)}}
   case 'participant':{const st=await D.participantState(db,b.id);return {...st,participant:pub(await D.getParticipant(db,b.id)),attempts:await rows(db,'SELECT a.id,a.score,a.completed,a.createdAt,e.title FROM attempts a JOIN exams e ON e.id=a.examId WHERE a.participantId=? ORDER BY a.createdAt DESC LIMIT 200',b.id).catch(()=>[])}}
   case 'register':return {participant:pub(await D.register(db,b.data))};
   case 'adjust':return {entry:await D.adjustPoints(db,b.participantId,Number(b.delta),b.reason,actor,b.requestKey)};
