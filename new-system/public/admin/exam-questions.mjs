@@ -34,7 +34,8 @@ export function questionErrors(questions){
 }
 
 export function parseTextQuestions(text,prefix='q',points=1){
- return String(text).trim().split(/\n\s*\n/).filter(block=>block.trim()).map((block,i)=>{
+ const normalized=String(text).replace(/\r\n?/g,'\n').replace(/[\u2028\u2029]/g,'\n').replace(/[\u200B-\u200F\uFEFF]/g,'');
+ return normalized.trim().split(/\n[ \t\u00A0]*\n+/).filter(block=>block.trim()).map((block,i)=>{
   const [text,...options]=block.split('\n').map(s=>s.trim()).filter(Boolean);
   return {id:prefix+'-'+(i+1),text,options:options.map(o=>o.replace(/^\*/,'')),correct:options.findIndex(o=>o.startsWith('*')),points};
  });

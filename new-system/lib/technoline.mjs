@@ -11,7 +11,7 @@ const prompt=(s,message,min=1,max=1)=>{
 const NONE=v=>v===''||v==='ERROR';
 const finish=message=>({type:'simpleMessage',files:[text(message)],addParams:{tv_done:'1'}});
 const MENU='למבחנים הקישו 1. ליתרת נקודות הקישו 2. להזמנת הטבה הקישו 3. להזמנות וביטולים הקישו 4. לשמיעת הודעות הצוות הקישו 5. להשארת הודעה לצוות הקישו 6. לשמיעה חוזרת של התפריט הקישו 0. ליציאה הקישו 9.';
-function menu(s,prefix=''){s.stage='menu';s.miss=0;return prompt(s,prefix+' '+MENU)}
+function menu(s,prefix='',brief=false){s.stage='menu';s.miss=0;return prompt(s,prefix+' '+(brief?'למבחנים הקישו 1. להזמנת הטבה הקישו 3. לתפריט המלא הקישו 0. ליציאה הקישו 9.':MENU))}
 const again=(s,prefix)=>{
  const previous=s.response,last=s.last,original=s.repeatFiles||previous?.files||[text(last.message)];
  const response=prompt(s,last.message,last.min,last.max);
@@ -167,7 +167,7 @@ async function advance(db,s,input,params={}){
   s.miss=0;
   if(input==='9'){s.stage='done';return finish('תודה ולהתראות.')}
   if(input==='0')return menu(s,'');
-  if(input==='2'){const p=state.participant;return menu(s,Number(p.debt)>0?'יש לך חוב של '+p.debt+' נקודות. הוא יקוזז מהנקודות שתצבור במבחנים הבאים.':'יש לך '+p.balance+' נקודות.')}
+  if(input==='2'){const p=state.participant;return menu(s,Number(p.debt)>0?'יש לך חוב של '+p.debt+' נקודות. הוא יקוזז מהנקודות שתצבור במבחנים הבאים.':'יש לך '+p.balance+' נקודות.',true)}
   if(input==='1'){s.examPage=0;return examList(db,s,state)}
   if(input==='3'){s.page=0;return benefitList(s,state)}
   if(input==='4'){s.orderPage=0;return orderList(s,state)}
@@ -249,7 +249,7 @@ async function advance(db,s,input,params={}){
   if(input==='2')return menu(s,'ההזמנה לא בוצעה.');
   if(input!=='1')return again(s,'המקש הזה לא קיים כאן. ');
   const o=await D.placeOrder(db,s.pid,s.benefitId,s.quantity,s.orderKey),p=await D.getParticipant(db,s.pid);
-  return menu(s,'ההזמנה נקלטה. נוכו '+o.total+' נקודות. היתרה שלך עכשיו '+p.balance+' נקודות. את פרטי ההזמנה אפשר לשמוע במקש 4.');
+  return menu(s,'ההזמנה נקלטה. נוכו '+o.total+' נקודות. היתרה שלך עכשיו '+p.balance+' נקודות. את פרטי ההזמנה אפשר לשמוע במקש 4.',true);
  }
  if(s.stage==='orderSelect'){
   if(input==='0')return menu(s,'');
@@ -263,7 +263,7 @@ async function advance(db,s,input,params={}){
   return prompt(s,info+'לבקשת ביטול וזיכוי הקישו 1. לחזרה הקישו 2.');
  }
  if(s.stage==='cancelConfirm'){
-  if(input==='1'){await D.cancelOrder(db,s.pid,s.orderId,s.pid);const p=await D.getParticipant(db,s.pid);return menu(s,'ההזמנה בוטלה והנקודות הוחזרו. היתרה שלך עכשיו '+p.balance+' נקודות.')}
+  if(input==='1'){await D.cancelOrder(db,s.pid,s.orderId,s.pid);const p=await D.getParticipant(db,s.pid);return menu(s,'ההזמנה בוטלה והנקודות הוחזרו. היתרה שלך עכשיו '+p.balance+' נקודות.',true)}
   if(input==='2')return orderList(s,state);
   return again(s,'המקש הזה לא קיים כאן. ');
  }

@@ -78,3 +78,8 @@ test('batch uploads follow arranged order, keep successful files, and retry only
  const retried=[];await uploadAudioQueue(questions,pending,async file=>{retried.push(file.name);return 'tl:456:q-2'});
  assert.deepEqual(retried,['second.mp3']);assert.equal(pending.size,0);assert.deepEqual(questions.map(q=>q.sourceName),['third.mp3','second.mp3','first.mp3']);
 });
+
+test('balance uses a short menu and zero restores the full menu',async()=>{
+ const {db}=setup(),{call}=await session(db);let r=await call('2');assert.match(spoken(r),/לתפריט המלא הקישו 0/);assert.doesNotMatch(spoken(r),/להשארת הודעה לצוות/);
+ r=await call('0');assert.match(spoken(r),/להשארת הודעה לצוות/);
+});
