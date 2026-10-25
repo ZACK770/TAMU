@@ -2,6 +2,8 @@ import {PDFDocument,rgb,StandardFonts} from 'pdf-lib';
 import QRCode from 'qrcode';
 import JSZip from 'jszip';
 import * as D from './domain.mjs';
+import {readFileSync} from 'node:fs';
+const DEFAULT_BACK=readFileSync(new URL('../assets/booklet-back.pdf',import.meta.url));
 const q=(db,s,...a)=>db.prepare(s).bind(...a);
 const rows=async(db,s,...a)=>(await q(db,s,...a).all()).results;
 const first=(db,s,...a)=>q(db,s,...a).first();
@@ -56,7 +58,7 @@ export async function exportBooklet(db,id,mode,origin,from=1,to=1e9){
  const files=await rows(db,'SELECT * FROM b_booklet_files WHERE bookletId=? ORDER BY ord',id),parts=files.filter(f=>f.kind==='part'),backF=files.find(f=>f.kind==='back');
  const codes=await rows(db,'SELECT code,serial FROM b_booklet_codes WHERE bookletId=? AND voided=0 AND serial>=? AND serial<=? ORDER BY serial',id,Number(from)||1,Number(to)||1e9);
  if(mode!=='zip'&&!codes.length)fail('אין קודים בטווח שנבחר. יוצרים קודים קודם.');
- const tpl=backF?await PDFDocument.load(Buffer.from(backF.data,'base64'),{ignoreEncryption:true}):null,url=c=>origin+'/bifnim/?code='+c;
+ const tpl=await PDFDocument.load(backF?Buffer.from(backF.data,'base64'):DEFAULT_BACK,{ignoreEncryption:true}),url=c=>origin+'/bifnim/?code='+c;
  const merged=async(extra)=>{const doc=await PDFDocument.create();for(const f of parts){const src=await PDFDocument.load(Buffer.from(f.data,'base64'),{ignoreEncryption:true});(await doc.copyPages(src,src.getPageIndices())).forEach(p=>doc.addPage(p))}if(extra)await extra(doc);return doc};
  const backs=async()=>{const doc=await PDFDocument.create(),font=await doc.embedFont(StandardFonts.HelveticaBold);for(const c of codes)await stampBack(doc,tpl,c.code,c.serial,url(c.code),font);return doc.save()};
  if(mode==='backs')return {type:'application/pdf',name:'backs.pdf',data:Buffer.from(await backs())};
