@@ -15,8 +15,11 @@ function question(s,a){
  if(a.completed)return menu(s,'המבחן הושלם. נזקפו לחשבונך '+a.score+' נקודות.');
  if(!a.question)return menu(s,'לא נמצאה שאלה להמשך. יש לפנות לצוות.');
  s.stage='answer';s.attemptId=a.id;s.questionId=a.question.id;s.optionCount=a.question.options.length;
- const spoken='שאלה '+(a.answered+1)+' מתוך '+a.total+'. '+(a.question.text||'')+'. '+a.question.options.map((o,i)=>'לתשובה '+o+' הקישו '+(i+1)).join('. ');
- return prompt(s,spoken);
+ const head=(a.question.bonus?'שאלת בונוס. ':'שאלה '+(a.answered+1)+' מתוך '+a.total+'. ');
+ const opts=a.question.options.map((o,i)=>'לתשובה '+o+' הקישו '+(i+1)).join('. ');
+ const r=prompt(s,head+(a.question.audioKey?'':(a.question.text||'')+'. ')+opts);
+ if(a.question.audioKey?.startsWith('tl:'))r.files=[text(head),{fileId:a.question.audioKey.slice(3)},text(opts)];
+ return r;
 }
 const loginPrompt=(s,prefix='')=>{s.stage='nationalId';return prompt(s,prefix+'הקישו תעודת זהות בת 9 ספרות. להרשמה חדשה הקישו 0 וסולמית.',1,9)};
 async function advance(db,s,input,params={}){

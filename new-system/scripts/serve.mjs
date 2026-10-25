@@ -19,7 +19,7 @@ const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8',
 const sec={'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','X-Frame-Options':'DENY','Strict-Transport-Security':'max-age=31536000'};
 const send=(res,status,body,headers={})=>{res.writeHead(status,{...sec,'Cache-Control':'no-store',...headers});res.end(body)};
 const json=(res,status,obj,headers={})=>send(res,status,JSON.stringify(obj),{'Content-Type':'application/json; charset=utf-8',...headers});
-async function body(req){const chunks=[];let n=0;for await(const c of req){n+=c.length;if(n>1024*1024)throw new DomainError('בקשה גדולה מדי',413);chunks.push(c)}return Buffer.concat(chunks)}
+async function body(req,max=1024*1024){const chunks=[];let n=0;for await(const c of req){n+=c.length;if(n>max)throw new DomainError('בקשה גדולה מדי',413);chunks.push(c)}return Buffer.concat(chunks)}
 const clientIp=req=>String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'unknown').split(',')[0].trim();
 const server=createServer(async(req,res)=>{
  try{
@@ -31,12 +31,23 @@ const server=createServer(async(req,res)=>{
    return json(res,200,await handleTechnolineCall(db,params));
   }
   if(path.startsWith('/api/')){
-   const raw=await body(req);
+   const raw=await body(req,path==='/api/admin/audio'?2*1024*1024:1024*1024);
    const request=new Request(url,{method:req.method,headers:{...req.headers,'x-local-client':clientIp(req)},...(['GET','HEAD'].includes(req.method)?{}:{body:raw})});
    if(path.startsWith('/api/youth/')){const out=await handleYouthHttp(db,request,path.slice(5),r=>S.authorizeStaff(db,r));return send(res,out.status,Buffer.from(await out.arrayBuffer()),Object.fromEntries(out.headers))}
    if(path==='/api/staff/login'&&req.method==='POST'){const b=JSON.parse(raw||'{}'),a=await S.staffLogin(db,b.username,b.password);return json(res,200,{staff:a.staff},{'Set-Cookie':S.staffCookie(a.token,secure)})}
    if(path==='/api/staff/logout'){await S.staffLogout(db,request);return json(res,200,{ok:true},{'Set-Cookie':S.staffCookie('',secure,true)})}
    if(path==='/api/staff/me')return json(res,200,{staff:await S.authorizeStaff(db,request)});
+   if(path==='/api/admin/audio'){
+    const staff=await S.authorizeStaff(db,request);if(!['admin','editor'].includes(staff.role))throw new DomainError('אין לך הרשאה',403);
+    const key=process.env.TECHNOLINE_SYSTEM_KEY,ext=process.env.TECHNOLINE_AUDIO_EXTENSION;if(!key||!ext)throw new DomainError('העלאת שמע לא הוגדרה',500);
+    const tl='https://api.tlivr.com/ivrFilesApi.php';
+    if(req.method==='GET'){const id=String(url.searchParams.get('key')||'').replace(/^tl:/,'');if(!/^\d+$/.test(id))throw new DomainError('קובץ לא תקין');const r=await fetch(tl+'?action=fileDownload&play=1&audio='+id+'&apiKey='+encodeURIComponent(key));return send(res,r.status,Buffer.from(await r.arrayBuffer()),{'Content-Type':r.headers.get('content-type')||'audio/mpeg'})}
+    const type=String(url.searchParams.get('type')||'webm').replace(/[^a-z0-9]/g,'').slice(0,5)||'webm';
+    const fd=new FormData();fd.set('extensionId',ext);fd.set('name','q-'+Date.now());fd.set('checkDuplicate','BACKUP');fd.set('file',new Blob([raw]),'q.'+type);
+    const j=await (await fetch(tl+'?action=uploadFile&apiKey='+encodeURIComponent(key),{method:'POST',body:fd})).json().catch(()=>({}));
+    if(j.status!=='OK'||!j.fileId)throw new DomainError('העלאת השמע נכשלה'+(j.reason?': '+j.reason:''),502);
+    return json(res,200,{audioKey:'tl:'+j.fileId});
+   }
    if(path==='/api/admin'&&req.method==='POST'){const staff=await S.authorizeStaff(db,request),b=JSON.parse(raw||'{}');return json(res,200,await handleAdmin(db,staff,String(b.action||''),b))}
    return json(res,404,{error:'לא נמצא'});
   }
