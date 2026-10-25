@@ -1,6 +1,7 @@
 import * as D from './domain.mjs';
 import * as S from './staff.mjs';
 import * as B from './booklets.mjs';
+import {youthDb} from './youth.mjs';
 const q=(db,s,...a)=>db.prepare(s).bind(...a);
 const rows=async(db,s,...a)=>(await q(db,s,...a).all()).results;
 const fail=(m,s=400)=>{throw new D.DomainError(m,s)};
@@ -39,8 +40,8 @@ export async function handleAdmin(db,staff,action,b={}){
   case 'track':return {result:await D.changeTrack(db,b.participantId,b.track,actor)};
   case 'block':await db.batch([q(db,'UPDATE participants SET blocked=? WHERE id=?',b.blocked?1:0,b.participantId),q(db,'DELETE FROM sessions WHERE participantId=?',b.participantId),D.auditStatement(db,actor,'participant.block',b.participantId,{blocked:!!b.blocked})]);return {ok:true};
   case 'resetPassword':if(!/^\d{6,12}$/.test(String(b.password||'')))fail('סיסמה טלפונית: 6–12 ספרות');await db.batch([q(db,'UPDATE participants SET passwordHash=? WHERE id=?',await D.hashPassword(String(b.password)),b.participantId),q(db,'DELETE FROM sessions WHERE participantId=?',b.participantId),D.auditStatement(db,actor,'participant.password',b.participantId)]);return {ok:true};
-  case 'exams':return {exams:(await rows(db,'SELECT * FROM exams ORDER BY opensAt DESC LIMIT 200')).map(e=>({...e,questions:JSON.parse(e.questions||'[]')}))};
-  case 'saveExam':return {exam:await D.saveExam(db,b.data,actor)};
+  case 'exams':return {exams:[...(await rows(db,'SELECT * FROM exams ORDER BY opensAt DESC LIMIT 200')).map(e=>({...e,program:'phone'})),...(await rows(db,'SELECT * FROM b_exams ORDER BY opensAt DESC LIMIT 200')).map(e=>({...e,program:'bifnim'}))].sort((x,y)=>String(y.opensAt).localeCompare(String(x.opensAt))).map(e=>({...e,questions:JSON.parse(e.questions||'[]')}))};
+  case 'saveExam':return {exam:await D.saveExam(b.data?.program==='bifnim'?youthDb(db):db,b.data,actor)};
   case 'benefits':return {benefits:await rows(db,'SELECT * FROM benefits ORDER BY createdAt DESC LIMIT 300')};
   case 'saveBenefit':return {benefit:await D.saveBenefit(db,b.data,actor)};
   case 'orders':return {orders:await rows(db,'SELECT o.*,p.name,p.nationalId FROM orders o JOIN participants p ON p.id=o.participantId WHERE (?=\'\' OR o.status=?) ORDER BY o.createdAt DESC LIMIT 500',b.status||'',b.status||'')};
