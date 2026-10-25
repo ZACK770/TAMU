@@ -10,7 +10,14 @@ const prompt=(s,message,min=1,max=1)=>{
 };
 const finish=message=>({type:'simpleMessage',files:[text(message)],addParams:{tv_done:'1'}});
 function menu(s,prefix=''){
- s.stage='menu';return prompt(s,prefix+' למבחנים הקישו 1. ליתרת נקודות הקישו 2. להזמנת הטבה הקישו 3. להזמנות וביטולים הקישו 4. לשמיעת תשובות הצוות הקישו 5. להשארת הודעה לצוות הקישו 6. ליציאה הקישו 9.');
+ s.stage='menu';return prompt(s,prefix+' למבחנים הקישו 1. ליתרת נקודות הקישו 2. להזמנת הטבה הקישו 3. להזמנות וביטולים הקישו 4. לשמיעת הודעות הצוות הקישו 5. להשארת הודעה לצוות הקישו 6. ליציאה הקישו 9.');
+}
+async function playMsg(db,s,prefix=''){
+ const m=await first(db,'SELECT subject,reply,replyAudioKey,createdAt FROM messages WHERE id=?',s.items[s.idx]);
+ const day=new Date(m.createdAt).toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long',timeZone:'Asia/Jerusalem'});
+ const r=prompt(s,'לשמיעה חוזרת הקישו 1. להודעה הבאה 2. להודעה הקודמת 3. לתפריט הראשי 0.');
+ r.files=[text(prefix+'הודעה '+(s.idx+1)+' מתוך '+s.items.length+'. '+(m.subject||'הודעה מהצוות')+', מ'+day+'.'),m.replyAudioKey?.startsWith('tl:')?{fileId:m.replyAudioKey.split(':')[1],extensionId:process.env.TECHNOLINE_AUDIO_EXTENSION||''}:text(m.reply),...r.files];
+ return r;
 }
 function question(s,a){
  if(a.completed)return menu(s,'המבחן הושלם. נזקפו לחשבונך '+a.score+' נקודות.');
@@ -82,10 +89,10 @@ async function advance(db,s,input,params={}){
    return prompt(s,orders.map((o,i)=>'להזמנה של '+JSON.parse(o.snapshot).title+', בכמות '+o.quantity+', הקישו '+(i+1)).join('. '));
   }
   if(input==='5'){
-   const replies=state.messages.filter(m=>m.reply).slice(0,10);
-   const replies2=state.messages.filter(m=>m.reply||m.replyAudioKey).slice(0,10);
-   if(!replies2.length)return menu(s,'אין תשובות חדשות.');
-   const r=menu(s,'');r.files=[...replies2.flatMap(m=>[text('תשובה בנושא '+m.subject+'.'),m.replyAudioKey?.startsWith('tl:')?{fileId:m.replyAudioKey.split(':')[1],extensionId:process.env.TECHNOLINE_AUDIO_EXTENSION||''}:text(m.reply)]),...r.files];return r;
+   const list=await D.rows(db,"SELECT id,heardAt FROM messages WHERE participantId=? AND (reply<>'' OR replyAudioKey IS NOT NULL) AND (expiresAt IS NULL OR expiresAt>?) ORDER BY createdAt DESC LIMIT 30",s.pid,D.now());
+   if(!list.length)return menu(s,'אין הודעות מהצוות.');
+   const fresh=list.filter(m=>!m.heardAt);s.stage='msgplay';s.items=(fresh.length?fresh:list).map(m=>m.id);s.idx=0;
+   return playMsg(db,s,fresh.length?(fresh.length===1?'יש לך הודעה חדשה אחת. ':'יש לך '+fresh.length+' הודעות חדשות. '):'אין הודעות חדשות. אלו ההודעות הקודמות. ');
   }
   if(input==='6'){
    const recent=await first(db,'SELECT COUNT(*) AS n FROM messages WHERE participantId=? AND audioKey IS NOT NULL AND createdAt>?',s.pid,new Date(Date.now()-864e5).toISOString());
@@ -101,6 +108,14 @@ async function advance(db,s,input,params={}){
   const mid=await D.addMessage(db,s.pid,{subject:'הודעה קולית מהטלפון',audioKey:'technoline:'+fileId});
   if(mid)STT.transcribeMessage(db,mid,fileId);
   return menu(s,'ההודעה נשמרה. תשובת הצוות תושמע בתפריט התשובות.');
+ }
+ if(s.stage==='msgplay'){
+  await statement(db,'UPDATE messages SET heardAt=? WHERE id=? AND heardAt IS NULL',D.now(),s.items[s.idx]).run();
+  if(input==='0')return menu(s,'');
+  if(input==='1')return playMsg(db,s);
+  if(input==='3'){s.idx=Math.max(0,s.idx-1);return playMsg(db,s)}
+  if(s.idx+1>=s.items.length)return menu(s,'אלו כל ההודעות.');
+  s.idx++;return playMsg(db,s);
  }
  if(s.stage==='examSelect'){
   const eid=s.items[Number(input)-1];if(!eid)return menu(s,'הבחירה אינה תקינה.');

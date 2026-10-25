@@ -31,7 +31,7 @@ export async function handleAdmin(db,staff,action,b={}){
     if(b.op==='adjust')await D.adjustPoints(db,pid,Number(b.delta),b.reason,actor,b.requestKey+':'+pid,b.mode);
     else if(b.op==='track')await D.changeTrack(db,pid,b.track,actor);
     else if(b.op==='block')await db.batch([q(db,'UPDATE participants SET blocked=? WHERE id=?',b.blocked?1:0,pid),q(db,'DELETE FROM sessions WHERE participantId=?',pid),D.auditStatement(db,actor,'participant.block',pid,{blocked:!!b.blocked,bulk:true})]);
-    else if(b.op==='message')await db.batch([q(db,"INSERT INTO messages(id,participantId,subject,body,reply,status,createdAt) VALUES(?,?,?,?,?,'answered',?)",crypto.randomUUID(),pid,'הודעה מהצוות','',txt,t),D.auditStatement(db,actor,'message.send',pid)]);
+    else if(b.op==='message')await db.batch([q(db,"INSERT INTO messages(id,participantId,subject,body,reply,status,createdAt,broadcastId) VALUES(?,?,?,?,?,'answered',?,?)",crypto.randomUUID(),pid,'הודעה מהצוות','',txt,t,(b._bid??=crypto.randomUUID())),D.auditStatement(db,actor,'message.send',pid)]);
     else fail('פעולה לא מוכרת');res.ok++}catch(e){res.failed.push({id:pid,error:e.message})}}
    return res}
   case 'register':return {participant:pub(await D.register(db,b.data))};
@@ -53,14 +53,23 @@ export async function handleAdmin(db,staff,action,b={}){
    if(action==='redeem')return {order:await D.orderTransition(db,o.id,'complete',actor,staff.role==='merchant'?staff.scope:null)};
    const {snapshot,...rest}=o;return {order:{...rest,title:JSON.parse(snapshot).title}};
   }
-  case 'booklets':return B.listBooklets(db);
+  case 'broadcast':{const txt=String(b.text||'').trim().slice(0,2000),ak=b.audioKey&&/^tl:\d+:q-\d+$/.test(b.audioKey)?b.audioKey:null;if(!txt&&!ak)fail('חסר תוכן להודעה');
+  const exp=b.expiresAt?new Date(b.expiresAt+'T23:59:59+03:00').toISOString():null,w=['blocked=0'],a=[];
+  if(b.target==='track'){w.push('track=?');a.push(b.value)}else if(b.target==='institution'){w.push('institution=?');a.push(b.value)}else if(b.target!=='all')fail('לא נבחרו נמענים');
+  const ids=(await rows(db,'SELECT id FROM participants WHERE '+w.join(' AND '),...a)).map(r=>r.id);if(!ids.length)fail('אין נמענים שעונים על הבחירה');
+  const bid=crypto.randomUUID(),t=D.now(),subj=String(b.subject||'הודעה מהצוות').trim().slice(0,80)||'הודעה מהצוות';
+  for(let i=0;i<ids.length;i+=200)await db.batch(ids.slice(i,i+200).map(pid=>q(db,"INSERT INTO messages(id,participantId,subject,body,reply,replyAudioKey,status,createdAt,broadcastId,expiresAt) VALUES(?,?,?,?,?,?,'answered',?,?,?)",crypto.randomUUID(),pid,subj,'',txt,ak,t,bid,exp)));
+  await db.batch([D.auditStatement(db,actor,'message.broadcast',bid)]);return {ok:true,count:ids.length}}
+ case 'broadcasts':return {broadcasts:await rows(db,'SELECT broadcastId,MIN(subject) AS subject,MIN(reply) AS reply,MIN(replyAudioKey) AS audio,MIN(createdAt) AS createdAt,MIN(expiresAt) AS expiresAt,COUNT(*) AS total,COUNT(heardAt) AS heard FROM messages WHERE broadcastId IS NOT NULL GROUP BY broadcastId ORDER BY MIN(createdAt) DESC LIMIT 100')};
+ case 'broadcastRecipients':return {recipients:await rows(db,'SELECT p.name,p.nationalId,m.heardAt FROM messages m JOIN participants p ON p.id=m.participantId WHERE m.broadcastId=? ORDER BY m.heardAt DESC',b.id)};
+ case 'booklets':return B.listBooklets(db);
  case 'saveBooklet':return B.saveBooklet(db,b);
  case 'bookletFileMove':return B.moveFile(db,b.id,Number(b.dir));
  case 'bookletFileDelete':return B.deleteFile(db,b.id);
  case 'generateCodes':return B.generateCodes(db,b.id,b.count);
  case 'bookletCodes':return B.bookletCodes(db,b.id);
  case 'voidCode':return B.voidCode(db,b.code);
- case 'messages':return {messages:await rows(db,'SELECT m.*,p.name,p.nationalId FROM messages m JOIN participants p ON p.id=m.participantId ORDER BY m.createdAt DESC LIMIT 300')};
+ case 'messages':return {messages:await rows(db,'SELECT m.*,p.name,p.nationalId FROM messages m JOIN participants p ON p.id=m.participantId WHERE m.broadcastId IS NULL ORDER BY m.createdAt DESC LIMIT 300')};
   case 'institutions':return {institutions:await rows(db,'SELECT i.*,(SELECT COUNT(*) FROM participants p WHERE p.institution=i.name) AS n FROM institutions i ORDER BY i.name')};
   case 'institutionQueue':return {queue:(await rows(db,'SELECT * FROM participants WHERE spokenInstitution IS NOT NULL AND institution IS NULL ORDER BY createdAt DESC LIMIT 300')).map(p=>({...pub(p),spokenInstitution:p.spokenInstitution,regAudioKey:p.regAudioKey}))};
   case 'saveInstitution':{const name=String(b.name||'').trim().slice(0,120);if(!name)fail('חסר שם מוסד');const al=JSON.stringify([...new Set((b.aliases||[]).map(s=>String(s).trim().slice(0,120)).filter(Boolean))].slice(0,50));

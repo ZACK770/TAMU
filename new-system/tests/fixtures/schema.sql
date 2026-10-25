@@ -13,7 +13,7 @@ CREATE TABLE orders(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participan
 CREATE TABLE audit(id TEXT PRIMARY KEY,actor TEXT,action TEXT,target TEXT,details TEXT,createdAt TEXT);
 CREATE TABLE sessions(tokenHash TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),expiresAt TEXT);
 CREATE TABLE auth_limits(key TEXT PRIMARY KEY,failures INTEGER DEFAULT 0,until TEXT);
-CREATE TABLE messages(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),subject TEXT,body TEXT,audioKey TEXT,reply TEXT,replyAudioKey TEXT,status TEXT DEFAULT 'open',createdAt TEXT);
+CREATE TABLE messages(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),subject TEXT,body TEXT,audioKey TEXT,reply TEXT,replyAudioKey TEXT,status TEXT DEFAULT 'open',createdAt TEXT,broadcastId TEXT,expiresAt TEXT,heardAt TEXT);
 CREATE TABLE staff(userId TEXT PRIMARY KEY,name TEXT,role TEXT,scope TEXT,createdAt TEXT);
 CREATE TABLE legacy(id TEXT PRIMARY KEY,source TEXT,rowKey TEXT UNIQUE,nationalId TEXT,kind TEXT,payload TEXT,createdAt TEXT);
 CREATE TABLE shipments(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),kind TEXT,address TEXT,status TEXT DEFAULT 'pending',notes TEXT,createdAt TEXT);

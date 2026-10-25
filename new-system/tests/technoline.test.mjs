@@ -28,3 +28,20 @@ test('short legacy password accepted at login prompt',async()=>{
  const {db:d}=db(),c=call('call-2');await c(d);
  const r=await c(d,'123456782');assert.equal(r.min,1);
 });
+
+test('staff messages play in sequence, newest first, marked heard',async()=>{
+ const {db:d,sql}=db(),c=call('call-msg');
+ let r=await c(d);r=await c(d,'0');r=await c(d,'123456782');r=await c(d,'654321');r=await c(d,'654321');r=await c(d,'');
+ const pid=sql.prepare('SELECT id FROM participants WHERE nationalId=?').get('123456782').id;
+ const ins=sql.prepare("INSERT INTO messages(id,participantId,subject,body,reply,status,createdAt,broadcastId) VALUES(?,?,?,?,?,'answered',?,?)");
+ ins.run('m1',pid,'ישנה','','הודעה ראשונה','2026-01-01T10:00:00Z','b1');ins.run('m2',pid,'חדשה','','הודעה שנייה','2026-01-02T10:00:00Z','b2');
+ sql.prepare("INSERT INTO messages(id,participantId,subject,body,audioKey,createdAt) VALUES('own',?,'הודעה','שלי','technoline:F1','2026-01-03T10:00:00Z')").run(pid);
+ for(let i=0;i<4&&!/למבחנים/.test(JSON.stringify(r));i++)r=await c(d,'');
+ r=await c(d,'5');assert.match(r.files[0].text,/2 הודעות חדשות.*הודעה 1 מתוך 2. חדשה/);assert.equal(r.files[1].text,'הודעה שנייה');
+ r=await c(d,'1');assert.equal(r.files[1].text,'הודעה שנייה');
+ r=await c(d,'2');assert.equal(r.files[1].text,'הודעה ראשונה');
+ r=await c(d,'3');assert.equal(r.files[1].text,'הודעה שנייה');
+ r=await c(d,'2');r=await c(d,'2');assert.match(r.files[0].text,/אלו כל ההודעות/);
+ assert.equal(sql.prepare('SELECT COUNT(*) n FROM messages WHERE heardAt IS NOT NULL').get().n,2);
+ r=await c(d,'5');assert.match(r.files[0].text,/אין הודעות חדשות/);
+});
