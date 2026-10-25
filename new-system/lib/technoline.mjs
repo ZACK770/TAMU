@@ -21,7 +21,7 @@ function question(s,a){
 async function advance(db,s,input){
  if(s.stage==='nationalId'){
   if(!/^\d{9}$/.test(input))return prompt(s,'תעודת הזהות אינה תקינה. הקישו 9 ספרות כולל אפסים מובילים.',9,9);
-  s.nationalId=input;s.stage='password';return prompt(s,'הקישו את הסיסמה ובסיום סולמית.',6,12);
+  s.nationalId=input;s.stage='password';return prompt(s,'הקישו את הסיסמה ובסיום סולמית.',1,12);
  }
  if(s.stage==='password'){
   try{const auth=await D.login(db,s.nationalId,input);s.pid=auth.participant.id;delete s.nationalId;s.expires=Date.now()+30*60000;return menu(s,'שלום '+auth.participant.name+'.');}
