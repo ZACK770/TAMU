@@ -79,6 +79,7 @@ async function start(eid){
  const e=state.account.exams.find(e=>e.id===eid),existing=state.account.attempts.find(a=>a.examId===eid);
  const begin=async()=>{const r=await api('start',{examId:eid});state.attempt=r.data;state.questionIndex=r.data.settings.answerMode==='locked'?Math.min(r.data.answered,r.data.total-1):0;modal.close();location.hash='quiz/'+eid;render();};
  if(existing){await begin();return}
+ if(e?.needsCode){showModal('<h2 id="modal-title">מקלידים את הקוד מהחוברת</h2><p>'+esc(e.title)+' נפתח רק עם הקוד האישי שמודפס בגב החוברת שלך.</p><div class="request-summary"><input class="bcode-in" dir="ltr" placeholder="XXXX-XXXX" autocomplete="off"></div>'+button('פתיחת האתגר ↖','redeem-code','dark'));return}
  showModal('<h2 id="modal-title">רגע לפני שפותחים.</h2><p>'+esc(e?.title||'האתגר שלך')+'</p><div class="request-summary"><strong>'+esc(e?.questionCount||'')+' שאלות</strong><p>'+(e?.webSettings?.answerMode==='locked'?'כל תשובה ננעלת מיד. ממשיכים מהשאלות שלא נענו אם יוצאים באמצע.':'אפשר לעבור בין שאלות ולשנות תשובות עד ההגשה הסופית.')+'</p><p>נקודות נזקפות רק בסיום. אחרי ההגשה לא משפרים את הציון.</p></div>'+button('הבנתי, בוא נתחיל ↖','confirm-start','dark','data-id="'+esc(eid)+'"'));
 }
 async function action(el){
@@ -89,7 +90,7 @@ async function action(el){
  if(a==='challenges'){location.hash='challenges';return}
  if(a==='privacy'){showModal('<h2 id="modal-title">החשבון שלך, במקום בטוח.</h2><p>אנחנו שומרים את שם המשתמש, השם שבחרת, תשובות האתגרים, הנקודות וההזמנות כדי להפעיל את התוכנית.</p><p>כשמזמינים הטבה, הפרטים הנדרשים למימוש מועברים לבית העסק שמטפל בה. הפניות האישיות זמינות לך ולצוות המורשה.</p><p>לבקשת עיון, תיקון או מחיקת חשבון אפשר לפנות לצוות מתוך החשבון. נוסח מדיניות מלא ופרטי הגוף המפעיל יושלמו לפני פתיחת האתר לקהל.</p>'+button('פנייה לצוות','contact'));return}
  if(a==='logout'){await api('logout',{});state.account=null;state.attempt=null;location.hash='home';render();toast('יצאת מהחשבון. נתראה בפנים.');return}
- if(a==='redeem-code'){const v=$('#bcode')?.value.trim();if(!v)return;sessionStorage.setItem('bcode',v);if(!requireMember())return;await redeemPending();return}
+ if(a==='redeem-code'){const v=(el.closest('.modal,dialog')?.querySelector('.bcode-in')||$('#bcode'))?.value.trim();if(!v)return;sessionStorage.setItem('bcode',v);if(!requireMember())return;modal.close?.();await redeemPending();return}
  if(a==='start'){await start(el.dataset.id);return}
  if(a==='confirm-start'){const r=await api('start',{examId:el.dataset.id});state.attempt=r.data;state.questionIndex=0;modal.close();location.hash='quiz/'+el.dataset.id;render();return}
  if(a==='answer'){

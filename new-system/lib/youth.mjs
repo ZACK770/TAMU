@@ -39,7 +39,8 @@ export async function saveYouthExam(raw,e,actor){
 async function examConfig(db,eid){const s=await first(db,'SELECT value FROM settings WHERE key=?','web-exam:'+eid);return s?JSON.parse(s.value):{settings:{...DEFAULT_WEB_SETTINGS},lesson:{}}}
 export async function youthCatalog(raw){
  const db=youthDb(raw),exams=await D.rows(db,'SELECT id,title,week,track,kind,opensAt,closesAt,questionCount FROM exams WHERE published=1 ORDER BY opensAt DESC LIMIT 200');
- const out=[];for(const e of exams){const {lesson,settings}=await examConfig(db,e.id);out.push({...e,...lesson,webSettings:settings})}
+ const linked=new Set((await D.rows(raw,'SELECT examId FROM b_booklets WHERE examId IS NOT NULL')).map(r=>r.examId));
+ const out=[];for(const e of exams){const {lesson,settings}=await examConfig(db,e.id);out.push({...e,...lesson,webSettings:settings,needsCode:linked.has(e.id)})}
  const benefits=await D.rows(db,'SELECT * FROM benefits WHERE active=1 AND opensAt<=? AND closesAt>? ORDER BY createdAt DESC',D.now(),D.now());
  return {brand:BRAND,exams:out,benefits,settingsProvisional:true};
 }
