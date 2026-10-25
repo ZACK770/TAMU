@@ -17,4 +17,5 @@ CREATE TABLE messages(id TEXT PRIMARY KEY,participantId TEXT REFERENCES particip
 CREATE TABLE staff(userId TEXT PRIMARY KEY,name TEXT,role TEXT,scope TEXT,createdAt TEXT);
 CREATE TABLE legacy(id TEXT PRIMARY KEY,source TEXT,rowKey TEXT UNIQUE,nationalId TEXT,kind TEXT,payload TEXT,createdAt TEXT);
 CREATE TABLE shipments(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),kind TEXT,address TEXT,status TEXT DEFAULT 'pending',notes TEXT,createdAt TEXT);
-CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT);
+CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT);CREATE TABLE IF NOT EXISTS staff_accounts(id TEXT PRIMARY KEY,username TEXT UNIQUE NOT NULL,name TEXT,passwordHash TEXT NOT NULL,role TEXT NOT NULL,scope TEXT,active INTEGER NOT NULL DEFAULT 1,createdAt TEXT);
+CREATE TABLE IF NOT EXISTS staff_sessions(tokenHash TEXT PRIMARY KEY,staffId TEXT REFERENCES staff_accounts(id),expiresAt TEXT);

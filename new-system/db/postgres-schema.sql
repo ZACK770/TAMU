@@ -41,3 +41,5 @@ CREATE TABLE IF NOT EXISTS b_legacy(id TEXT PRIMARY KEY,source TEXT,rowKey TEXT 
 CREATE TABLE IF NOT EXISTS b_shipments(id TEXT PRIMARY KEY,participantId TEXT REFERENCES b_participants(id),kind TEXT,address TEXT,status TEXT DEFAULT 'pending',notes TEXT,createdAt TEXT);
 CREATE TABLE IF NOT EXISTS b_settings(key TEXT PRIMARY KEY,value TEXT);
 CREATE TABLE IF NOT EXISTS b_web_attempts(attemptId TEXT PRIMARY KEY REFERENCES b_attempts(id),settings TEXT NOT NULL,payload TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 0,finalized INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS staff_accounts(id TEXT PRIMARY KEY,username TEXT UNIQUE NOT NULL,name TEXT,passwordHash TEXT NOT NULL,role TEXT NOT NULL,scope TEXT,active INTEGER NOT NULL DEFAULT 1,createdAt TEXT);
+CREATE TABLE IF NOT EXISTS staff_sessions(tokenHash TEXT PRIMARY KEY,staffId TEXT REFERENCES staff_accounts(id),expiresAt TEXT);
