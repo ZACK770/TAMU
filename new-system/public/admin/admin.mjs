@@ -5,7 +5,7 @@ const local=v=>v?new Date(new Date(v).getTime()-new Date().getTimezoneOffset()*6
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',3500)}
 async function api(action,data={}){const r=await fetch('/api/admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...data})});const j=await r.json().catch(()=>({error:'שגיאה'}));if(r.status===401){showLogin();throw new Error(j.error)}if(!r.ok){toast(j.error||'שגיאה');throw new Error(j.error)}return j}
 let me;
-const TABS={admin:['בית','משתתפים','מבחנים','הטבות','הזמנות','הודעות','צוות','יומן'],editor:['בית','מבחנים','הודעות'],support:['בית','משתתפים','הודעות'],merchant:['מימוש']};
+const TABS={admin:['בית','משתתפים','מבחנים','הטבות','הזמנות','הודעות','צוות','יומן','סימולטור'],editor:['בית','מבחנים','הודעות'],support:['בית','משתתפים','הודעות'],merchant:['מימוש']};
 function showLogin(){$('#login').hidden=false;$('#tabs').hidden=$('#view').hidden=$('#logout').hidden=true}
 $('#lf').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);const r=await fetch('/api/staff/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(f))});const j=await r.json();if(!r.ok){$('#lerr').textContent=j.error;return}start(j.staff)};
 $('#logout').onclick=async()=>{await fetch('/api/staff/logout',{method:'POST'});location.reload()};
@@ -14,6 +14,17 @@ function start(s){me=s;$('#login').hidden=true;$('#tabs').hidden=$('#view').hidd
 function go(t){[...$('#tabs').children].forEach(b=>b.classList.toggle('on',b.dataset.t===t));view.innerHTML='טוען…';PAGES[t]().catch(e=>view.innerHTML=`<p class="err">${esc(e.message)}</p>`)}
 const key=()=>crypto.randomUUID();
 const PAGES={
+ async 'סימולטור'(){
+  view.innerHTML=`<div class="card"><h3>סימולטור שיחה · שלוחה 9</h3><p>כל הקשה עוברת דרך אותו קוד שמשרת את הטלפון, על הנתונים האמיתיים. מומלץ להשתמש במשתמש בדיקה.</p><div class="row"><button id="sn">שיחה חדשה</button><button class="sec" id="sh">ניתוק</button></div><div id="sp" class="card" style="font-size:1.2em;min-height:3em"></div><div class="row"><input id="sv" inputmode="numeric" autocomplete="off" placeholder="הקשות"><button id="ss">שלח (#)</button><button class="sec" id="sr" hidden>שלח הקלטה מדומה</button></div><div id="kp" style="display:grid;grid-template-columns:repeat(3,4em);gap:.4em;direction:ltr">${['1','2','3','4','5','6','7','8','9','*','0','#'].map(k=>`<button class="sec" data-k="${k}">${k}</button>`).join('')}</div><h4>תמליל</h4><ol id="sl"></ol></div>`;
+  let call='',cur=null;const log=t=>$('#sl').insertAdjacentHTML('beforeend',`<li>${esc(t)}</li>`);
+  const show=r=>{cur=r;const t=(r.files||[]).map(f=>f.text||'[קובץ שמע]').join(' ');$('#sp').textContent=r.type==='hangup'?'השיחה נותקה':(r.type==='getDTMF'?`[${r.min}–${r.max} ספרות] `:r.type==='record'?'[הקלטה] ':'')+t;log('מערכת: '+(t||r.type));$('#sr').hidden=r.type!=='record';if(r.type==='simpleMessage'){step({value:'1',field:'tv_done'})}};
+  const step=async x=>{const {response}=await api('ivrStep',{callId:call,...x});show(response)};
+  const send=v=>{if(!cur?.name)return;log('מתקשר: '+(v||'#'));step({field:cur.name,value:v===''?(cur.skipValue||''):v});$('#sv').value=''};
+  $('#sn').onclick=()=>{call=crypto.randomUUID();$('#sl').innerHTML='';step({})};
+  $('#sh').onclick=()=>{if(call){log('מתקשר: ניתוק');step({hangup:1})}};
+  $('#ss').onclick=()=>send($('#sv').value);$('#sv').onkeydown=e=>{if(e.key==='Enter')send($('#sv').value)};
+  $('#sr').onclick=()=>{log('מתקשר: [הקלטה]');step({field:cur.name,value:'sim.wav',fileId:'SIM-'+Date.now()})};
+  $('#kp').onclick=e=>{const k=e.target.dataset.k;if(!k)return;if(k==='#')send($('#sv').value);else $('#sv').value+=k}},
  async 'בית'(){const {counts}=await api('overview');view.innerHTML=`<div class="stats"><div>${counts.participants}<small>משתתפים</small></div><div>${counts.activeExams}<small>מבחנים פתוחים</small></div><div>${counts.pendingOrders}<small>הזמנות ממתינות</small></div><div>${counts.openMessages}<small>הודעות פתוחות</small></div></div>`},
  async 'משתתפים'(){view.innerHTML=`<div class="card row"><label>חיפוש לפי ת"ז או שם<input id="s"></label><button id="sb">חפש</button>${me.role==='admin'?'<button class="sec" id="nw">משתתף חדש</button>':''}</div><div id="list"></div>`;
   let page=0;const load=async()=>{const {participants,total}=await api('participants',{search:$('#s').value,page});const pages=Math.max(1,Math.ceil(total/100));$('#list').innerHTML=`<div class="row"><b>${total} משתתפים</b><button class="sec" id="pp" ${page?'':'disabled'}>הקודם</button><span>עמוד ${page+1} מתוך ${pages}</span><button class="sec" id="np" ${page+1<pages?'':'disabled'}>הבא</button></div><table><tr><th>ת"ז</th><th>שם</th><th>מוסד</th><th>מסלול</th><th>נקודות</th><th>מצב</th></tr>${participants.map(p=>`<tr class="click" data-id="${p.id}"><td>${esc(p.nationalId)}</td><td>${esc(p.name)}</td><td>${esc(p.institution)}</td><td>${p.track==='challenging'?'מאתגר':'קל'}</td><td>${p.balance}${p.debt?` (חוב ${p.debt})`:''}</td><td>${p.blocked?'חסום':''}</td></tr>`).join('')}</table>`;$('#list').onclick=e=>{if(e.target.id==='pp'){page--;return load()}if(e.target.id==='np'){page++;return load()}const id=e.target.closest('tr')?.dataset.id;if(id)participant(id)}};
