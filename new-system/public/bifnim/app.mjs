@@ -1,7 +1,8 @@
+import {phoneEntry} from './phone-entry.mjs';
 import {BRAND as copy} from './copy.mjs';
 const $=s=>document.querySelector(s);
 const main=$('#main'),modal=$('#modal');
-const state={catalog:null,account:null,attempt:null,questionIndex:0,saving:false,admin:null,filter:'all'};
+const state={authOptions:{phone:false,channels:[]},catalog:null,account:null,attempt:null,questionIndex:0,saving:false,admin:null,filter:'all'};
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const button=(label,action,cls='dark',extra='')=>'<button class="btn '+cls+'" data-action="'+action+'" '+extra+'>'+label+'</button>';
 const empty=(title,text)=>'<div class="empty"><h3>'+esc(title)+'</h3><p>'+esc(text)+'</p></div>';
@@ -16,9 +17,9 @@ async function api(path,body){
  if(!res.ok){const e=new Error(j.error||'הפעולה לא הושלמה');e.status=res.status;throw e}
  return j;
 }
-const pendingCode=new URLSearchParams(location.search).get('code');if(pendingCode){sessionStorage.setItem('bcode',pendingCode);history.replaceState(null,'',location.pathname+location.hash)}
-async function redeemPending(){const c=sessionStorage.getItem('bcode');if(!c||!state.account)return;sessionStorage.removeItem('bcode');try{const r=await api('redeem',{code:c});state.account=await api('state');state.attempt=r.data.attempt;state.questionIndex=0;location.hash='quiz/'+r.data.examId;await render()}catch(e){notice(e.message)}}
-async function refresh(){state.catalog=await api('catalog');try{state.account=await api('state')}catch(e){if(e.status===401)state.account=null;else throw e}renderNav();if(state.account&&sessionStorage.getItem('bcode'))setTimeout(redeemPending,0);}
+const pendingCode=(new URLSearchParams(location.search).get('code')||new URLSearchParams(location.search).get(''));if(pendingCode){sessionStorage.setItem('bcode',pendingCode);history.replaceState(null,'',location.pathname+location.hash)}
+async function redeemPending(){const c=sessionStorage.getItem('bcode');if(!c||!state.account)return;try{const r=await api('redeem',{code:c});sessionStorage.removeItem('bcode');state.account=await api('state');state.attempt=r.data.attempt;state.questionIndex=0;location.hash='quiz/'+r.data.examId;await render()}catch(e){notice(e.message)}}
+async function refresh(){state.authOptions=await api('auth-options').catch(()=>({phone:false,channels:[]}));state.catalog=await api('catalog');try{state.account=await api('state')}catch(e){if(e.status===401)state.account=null;else throw e}renderNav();}
 function renderNav(){
  const nav=$('#account-nav');
  nav.innerHTML=state.account?'<a class="btn dark" href="#account">'+esc(state.account.participant.name)+' <span>↖</span></a>':button(copy.start,'login','dark');
@@ -32,8 +33,8 @@ function courseCard(e,i=0){
 function heroArt(){return '<div class="hero-art" aria-label="עיצוב חוברת בפנים, גיליון מי מחליט עליי"><div class="art-orbit"></div><span class="art-star" aria-hidden="true">✳</span><div class="cover"><div class="cover-top"><span class="cover-brand">בפנים</span><span>גיליון לדוגמה · 01</span></div><h2>מי<br>מחליט<br>עליי?</h2><div class="door" aria-hidden="true"></div><div class="cover-bottom">דברים ששווה לפתוח<br>מבית טעמו וראו</div></div><div class="sticker">רגע, יש פה משהו.</div><div class="sticker bottom">פותחים מחשבה ↗</div></div>'}
 function home(){
  const courses=state.account?.exams||state.catalog?.exams||[];
- const intro=state.account?'<section class="section"><div class="dashboard-hero"><div><div class="eyebrow">טוב שחזרת, '+esc(state.account.participant.name)+'</div><h1>ממשיכים לפתוח<br>דברים טובים.</h1><p>השאלות שלך, ההתקדמות שלך, והדבר הבא שמחכה לך.</p><a class="btn dark" href="#challenges">לאתגר הבא ↖</a></div><a class="wallet-card" href="#account"><span>מה שצברת עד עכשיו</span><strong>'+number(state.account.participant.balance)+'</strong><span>נקודות בפנים · לחשבון שלך בלבד</span></a></div></section>':'<section class="hero"><div class="hero-copy"><div class="eyebrow">חסידות. החיים שלך. מקום לשאלות.</div><h1>יש בך יותר.<br>בוא לגלות <em>מה.</em></h1><p>'+copy.homeText+'<br>רעיונות מחסידות על כל מה שקורה אצלך בפנים.</p><div class="button-row">'+button(copy.start+' ↖','register','dark')+'<a class="btn outline" href="#learn">קודם מציצים</a></div><div class="hero-note"><span>✳</span>'+copy.invitation+'</div></div>'+heroArt()+'</section>';
- return intro+'<div class="marquee" aria-hidden="true"><span>פותחים שאלות</span><b>✳</b><span>מגלים כוחות</span><b>✳</b><span>חושבים בעצמנו</span><b>✳</b><span>לוקחים לחיים</span><b>✳</b><span>בפנים</span></div><section class="section"><div class="section-head"><div><div class="eyebrow">משהו ששווה כמה דקות שלך</div><h2>מה פותחים היום?</h2><p>רגע של מחשבה. זווית שלא חשבת עליה.</p></div><a class="text-btn" href="#learn">לכל התכנים ↖</a></div>'+(courses.length?'<div class="grid">'+courses.slice(0,3).map(courseCard).join('')+'</div>':empty('עוד דברים טובים בדרך.','הצוות מכין את התכנים הראשונים. אפשר לפתוח חשבון ולהיות מוכנים.'))+'</section><section class="section"><div class="story-strip"><div><div class="eyebrow">איך זה עובד כאן?</div><h2>פותחים את הראש.<br>לוקחים משהו לחיים.</h2><p>בפנים מחברים רעיונות מחסידות לשאלות שמעסיקות אותך: בחירות, חברים, ביטחון עצמי וכל מה שביניהם.</p>'+button('יש פה מקום בשבילי ↖',state.account?'challenges':'register','white')+'</div><div class="story-steps"><div class="step"><span class="step-number">1</span><div><strong>פותחים עניין</strong><p>קוראים רעיון קצר שפוגש משהו מהחיים שלך.</p></div></div><div class="step"><span class="step-number">2</span><div><strong>בוחנים את זה</strong><p>עונים על אתגר קצר ובודקים מה נשאר איתך.</p></div></div><div class="step"><span class="step-number">3</span><div><strong>הרווחת את זה</strong><p>צוברים נקודות לפי כללי האתגר ובוחרים מההטבות הזמינות.</p></div></div></div></div></section>';
+ const intro=state.account?'<section class="section"><div class="dashboard-hero"><div><div class="eyebrow">טוב שחזרת, '+esc(state.account.participant.name)+'</div><h1>ממשיכים לפתוח<br>דברים טובים.</h1><p>השאלות שלך, ההתקדמות שלך, והדבר הבא שמחכה לך.</p><a class="btn dark" href="#challenges">לאתגר הבא ↖</a></div><a class="wallet-card" href="#account"><span>מה שצברת עד עכשיו</span><strong>'+number(state.account.participant.balance)+'</strong><span>נקודות בפנים · לחשבון שלך בלבד</span></a></div></section>':'<section class="hero"><div class="hero-copy"><div class="eyebrow">חסידות. החיים שלך. מקום לשאלות.</div><h1>יש בך יותר.<br>בוא לגלות <em>מה.</em></h1><p>'+copy.homeText+'<br>רעיונות מחסידות על כל מה שקורה אצלך בפנים.</p><div class="button-row">'+button('נכנסים ומתחילים ↖','login','dark')+'<a class="btn outline" href="#learn">קודם מציצים</a></div><div class="hero-note"><span>✳</span>'+copy.invitation+'</div></div>'+heroArt()+'</section>';
+ return intro+'<div class="marquee" aria-hidden="true"><span>פותחים שאלות</span><b>✳</b><span>מגלים כוחות</span><b>✳</b><span>חושבים בעצמנו</span><b>✳</b><span>לוקחים לחיים</span><b>✳</b><span>בפנים</span></div><section class="section"><div class="section-head"><div><div class="eyebrow">משהו ששווה כמה דקות שלך</div><h2>מה פותחים היום?</h2><p>רגע של מחשבה. זווית שלא חשבת עליה.</p></div><a class="text-btn" href="#learn">לכל התכנים ↖</a></div>'+(courses.length?'<div class="grid">'+courses.slice(0,3).map(courseCard).join('')+'</div>':empty('עוד דברים טובים בדרך.','הצוות מכין את התכנים הראשונים. יש לך חוברת? סורקים את הקוד שבגב שלה ומתחילים.'))+'</section><section class="section"><div class="story-strip"><div><div class="eyebrow">איך זה עובד כאן?</div><h2>פותחים את הראש.<br>לוקחים משהו לחיים.</h2><p>בפנים מחברים רעיונות מחסידות לשאלות שמעסיקות אותך: בחירות, חברים, ביטחון עצמי וכל מה שביניהם.</p>'+button('יש פה מקום בשבילי ↖',state.account?'challenges':'register','white')+'</div><div class="story-steps"><div class="step"><span class="step-number">1</span><div><strong>פותחים עניין</strong><p>קוראים רעיון קצר שפוגש משהו מהחיים שלך.</p></div></div><div class="step"><span class="step-number">2</span><div><strong>בוחנים את זה</strong><p>עונים על אתגר קצר ובודקים מה נשאר איתך.</p></div></div><div class="step"><span class="step-number">3</span><div><strong>הרווחת את זה</strong><p>צוברים נקודות לפי כללי האתגר ובוחרים מההטבות הזמינות.</p></div></div></div></div></section>';
 }
 function library(challenges=false){
  const list=state.account?.exams||state.catalog?.exams||[];
@@ -69,13 +70,28 @@ function quiz(){
 }
 function field(label,name,type='text',required=true,hint=''){return '<label class="field"><span>'+label+'</span><input name="'+name+'" type="'+type+'" '+(required?'required':'')+' autocomplete="'+(type==='password'?'current-password':'off')+'">'+(hint?'<small>'+hint+'</small>':'')+'</label>'}
 function showModal(body){$('#modal-body').innerHTML=body;modal.showModal();setTimeout(()=>$('#modal-body input')?.focus(),30)}
-function auth(mode='login'){
+function legacyAuth(mode='login'){
  const reg=mode==='register';
  showModal('<h2 id="modal-title">'+(reg?'יש פה מקום בשבילך.':'טוב שחזרת.')+'</h2><p>'+(reg?'עוד רגע ויש לך מקום משלך — עם התכנים, האתגרים וההתקדמות שלך.':'נכנסים וממשיכים מאיפה שעצרנו.')+'</p><form data-form="'+mode+'">'+(reg?field('איך קוראים לך?','name','text',true,'אפשר גם שם שבו נוח לך שנפנה אליך.'):'')+field('שם משתמש','username','text',true,'אותיות או ספרות, בלי רווחים. אין צורך בתעודת זהות.')+field('סיסמה','password','password',true,reg?'לפחות 8 תווים. אפשר לשלב אותיות ומספרים.':'')+'<div class="form-error" hidden></div><button class="btn dark full" type="submit">'+(reg?'פותחים חשבון ↖':'נכנסים פנימה ↖')+'</button></form><div class="dialog-bottom">'+(reg?'כבר יש לך חשבון? <button class="auth-switch" data-action="login">נכנסים כאן</button>':'פעם ראשונה כאן? <button class="auth-switch" data-action="register">פותחים חשבון</button>')+'</div><p class="minor-note" style="margin-top:20px">פרטי החשבון וההתקדמות נשמרים לצורך הפעילות. לשאלות או בקשת מחיקה אפשר לפנות לצוות.</p>');
 }
+function auth(mode='login'){
+ if(state.authOptions.phone)return phoneEntry({showModal,options:state.authOptions,api,esc,legacy:()=>legacyAuth('login'),onVerified:afterAuthentication,context:sessionStorage.getItem('bcode')?'כניסה למבחן מהחוברת':undefined});
+ return legacyAuth(mode);
+}
+async function afterAuthentication(){
+ await refresh();modal.close();
+ if(sessionStorage.getItem('bcode')){await redeemPending();return}
+ const eid=sessionStorage.getItem('bexam');
+ if(eid){sessionStorage.removeItem('bexam');await start(eid);return}
+ await render();toast('טוב שבאת. אפשר להמשיך.');
+}
+function entryLanding(eid){
+ const e=(state.catalog?.exams||[]).find(e=>e.id===eid);
+ return '<section class="direct-entry"><span class="entry-eyebrow">בפנים · המבחן שלך מחכה</span><h1>'+esc(e?.title||'מהחוברת, ישר למבחן.')+'</h1><p>'+(e?esc(e.questionCount)+' שאלות על מה שלמדת.':'הקישור מהחוברת נשמר. נכנסים וממשיכים למבחן המתאים.')+'</p><div class="entry-route"><span>נכנסים</span><i>←</i><span>עונים</span><i>←</i><span>צוברים נקודות</span></div>'+button('כניסה למבחן','login','dark')+'<small>ההתקדמות נשמרת. אפשר לחזור ולהמשיך.</small></section>';
+}
 function requireMember(){if(state.account)return true;auth();return false}
 async function start(eid){
- if(!requireMember())return;
+ if(!state.account){sessionStorage.setItem('bexam',eid);auth();return}
  const e=state.account.exams.find(e=>e.id===eid),existing=state.account.attempts.find(a=>a.examId===eid);
  const begin=async()=>{const r=await api('start',{examId:eid});state.attempt=r.data;state.questionIndex=r.data.settings.answerMode==='locked'?Math.min(r.data.answered,r.data.total-1):0;modal.close();location.hash='quiz/'+eid;render();};
  if(existing){await begin();return}
@@ -88,7 +104,7 @@ async function action(el){
  if(a==='close-modal'){modal.close();return}
  if(a==='mobile-menu'){$('.header nav').classList.toggle('mobile-open');return}
  if(a==='challenges'){location.hash='challenges';return}
- if(a==='privacy'){showModal('<h2 id="modal-title">החשבון שלך, במקום בטוח.</h2><p>אנחנו שומרים את שם המשתמש, השם שבחרת, תשובות האתגרים, הנקודות וההזמנות כדי להפעיל את התוכנית.</p><p>כשמזמינים הטבה, הפרטים הנדרשים למימוש מועברים לבית העסק שמטפל בה. הפניות האישיות זמינות לך ולצוות המורשה.</p><p>לבקשת עיון, תיקון או מחיקת חשבון אפשר לפנות לצוות מתוך החשבון. נוסח מדיניות מלא ופרטי הגוף המפעיל יושלמו לפני פתיחת האתר לקהל.</p>'+button('פנייה לצוות','contact'));return}
+ if(a==='privacy'){showModal('<h2 id="modal-title">החשבון שלך, במקום בטוח.</h2><p>אנחנו שומרים את פרטי הכניסה (מספר טלפון מאומת או שם משתמש), השם שבחרת אם הוספת, תשובות האתגרים, הנקודות וההזמנות כדי להפעיל את התוכנית.</p><p>כשמזמינים הטבה, הפרטים הנדרשים למימוש מועברים לבית העסק שמטפל בה. הפניות האישיות זמינות לך ולצוות המורשה.</p><p>לבקשת עיון, תיקון או מחיקת חשבון אפשר לפנות לצוות מתוך החשבון. נוסח מדיניות מלא ופרטי הגוף המפעיל יושלמו לפני פתיחת האתר לקהל.</p>'+button('פנייה לצוות','contact'));return}
  if(a==='logout'){await api('logout',{});state.account=null;state.attempt=null;location.hash='home';render();toast('יצאת מהחשבון. נתראה בפנים.');return}
  if(a==='redeem-code'){const v=(el.closest('.modal,dialog')?.querySelector('.bcode-in')||$('#bcode'))?.value.trim();if(!v)return;sessionStorage.setItem('bcode',v);if(!requireMember())return;modal.close?.();await redeemPending();return}
  if(a==='start'){await start(el.dataset.id);return}
@@ -129,7 +145,7 @@ document.addEventListener('submit',async event=>{
  const data=Object.fromEntries(new FormData(form)),kind=form.dataset.form;
  if(submit)submit.disabled=true;if(err)err.hidden=true;
  try{
-  if(kind==='login'||kind==='register'){await api(kind,data);await refresh();modal.close();location.hash='home';render();toast(kind==='register'?'עכשיו אתה בפנים. טוב שהגעת.':'טוב שחזרת.')}
+  if(kind==='login'||kind==='register'){await api(kind,data);await afterAuthentication()}
   if(kind==='order'){data.quantity=Number(data.quantity);await api('order',data);await refresh();modal.close();location.hash='orders';render();toast('ההזמנה אצלנו. פרטי המימוש מחכים בחשבון שלך.')}
   if(kind==='message'){await api('message',data);await refresh();modal.close();location.hash='account';render();toast('ההודעה אצלנו. התשובה תחכה לך כאן בחשבון.')}
   if(kind==='card'){await api('card',data);await refresh();modal.close();toast('הכרטיס שלך נשמר להטענות הבאות.')}
@@ -137,9 +153,10 @@ document.addEventListener('submit',async event=>{
  finally{if(submit)submit.disabled=false}
 });
 async function render(){
- renderNav();const r=route(),[page,arg]=r.split('/');
+ renderNav();const r=route(),[page,arg]=r.split('/');document.body.classList.toggle('focused-entry',!!sessionStorage.getItem('bcode')||page==='quiz');
+ if(!state.account&&(sessionStorage.getItem('bcode')||sessionStorage.getItem('bexam'))){main.innerHTML=entryLanding(sessionStorage.getItem('bexam'));return}
  if(page==='quiz'&&!state.attempt){
-  if(!state.account){main.innerHTML=account();return}
+  if(!state.account){sessionStorage.setItem('bexam',arg);main.innerHTML=entryLanding(arg);return}
   const a=state.account.attempts.find(a=>a.examId===arg);
   if(a){try{state.attempt=await api('attempt?id='+encodeURIComponent(a.id));state.questionIndex=state.attempt.settings.answerMode==='locked'?Math.min(state.attempt.answered,state.attempt.total-1):0}catch(e){notice(e.message)}}else{main.innerHTML=library(true);return}
  }
@@ -148,4 +165,6 @@ async function render(){
 }
 window.addEventListener('hashchange',()=>{$('.header nav').classList.remove('mobile-open');notice('');render();window.scrollTo(0,0)});
 modal.addEventListener('click',e=>{if(e.target===modal)modal.close()});
-try{await refresh();await render();if(pendingCode&&!state.account){notice('כדי להתחיל את האתגר מהחוברת, נכנסים או נרשמים. הקוד שמור.');auth()}}catch(e){notice(e.message);main.innerHTML=home()+'<section class="section">'+empty('פותחים את האתר בקרוב.','החיבור לנתונים עדיין לא זמין. התצוגה הזאת מציגה את שפת האתר בלבד.')+'</section>'}
+const linkedExam=new URLSearchParams(location.search).get('exam')||(route().startsWith('quiz/')?route().slice(5):null);
+if(linkedExam)sessionStorage.setItem('bexam',linkedExam);
+try{await refresh();if(state.account&&sessionStorage.getItem('bcode'))await redeemPending();else if(state.account&&sessionStorage.getItem('bexam'))await afterAuthentication();else await render();if((pendingCode||linkedExam)&&!state.account)auth()}catch(e){notice(e.message);main.innerHTML=home()+'<section class="section">'+empty('פותחים את האתר בקרוב.','החיבור לנתונים עדיין לא זמין. התצוגה הזאת מציגה את שפת האתר בלבד.')+'</section>'}

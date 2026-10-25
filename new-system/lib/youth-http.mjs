@@ -1,9 +1,10 @@
+import * as Phone from './phone-auth.mjs';
 import * as D from './domain.mjs';
 import * as Y from './youth.mjs';
 const cookieName='bifnim_session';
 const json=(data,status=200,headers={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
 const q=(db,s,...a)=>db.prepare(s).bind(...a);
-function sessionCookie(token,secure,clear=false){return cookieName+'='+token+'; Path=/; HttpOnly; SameSite=Strict; Max-Age='+(clear?0:1800)+(secure?'; Secure':'')}
+function sessionCookie(token,secure,clear=false,maxAge=1800){return cookieName+'='+token+'; Path=/; HttpOnly; SameSite=Strict; Max-Age='+(clear?0:maxAge)+(secure?'; Secure':'')}
 async function member(raw,req){
  const rawCookie=req.headers.get('cookie')||'',match=rawCookie.match(/(?:^|;\s*)bifnim_session=([a-f0-9]{64})(?:;|$)/);
  if(!match)throw new D.DomainError('נכנסים לחשבון וממשיכים מכאן.',401);
@@ -27,6 +28,14 @@ export async function handleYouthHttp(raw,req,path,authorizeAdmin){
  try{
  await safeOrigin(req);const secure=new URL(req.url).protocol==='https:';
  const route=path.replace(/^youth\/?/,'');
+ if(req.method==='GET'&&route==='auth-options')return json(Phone.phoneAuthOptions());
+ if(req.method==='POST'&&route==='phone/request'){
+  await throttle(raw,req,'phone-send-ip',10);return json(await Phone.requestPhoneCode(raw,await req.json()));
+ }
+ if(req.method==='POST'&&route==='phone/verify'){
+  await throttle(raw,req,'phone-verify-ip',30);const auth=await Phone.verifyPhoneCode(raw,await req.json());
+  return json({participant:auth.participant},200,{'Set-Cookie':sessionCookie(auth.token,secure,false,30*86400)});
+ }
  if(req.method==='GET'&&route==='catalog')return json(await Y.youthCatalog(raw));
  if(req.method==='POST'&&route==='register'){
   await throttle(raw,req,'register',5);const b=await req.json();await Y.registerYouth(raw,b);const auth=await Y.loginYouth(raw,b.username,b.password);
