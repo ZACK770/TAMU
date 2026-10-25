@@ -1,7 +1,8 @@
 const TL='https://api.tlivr.com/ivrFilesApi.php';
 const all=async(db,s,...a)=>(await db.prepare(s).bind(...a).all()).results;
 async function audio(fileId){
- const r=await fetch(TL+'?action=fileDownload&audio='+encodeURIComponent(fileId)+'&apiKey='+encodeURIComponent(process.env.TECHNOLINE_SYSTEM_KEY||''));
+ const [nm,ext]=String(fileId).split('/');
+ const r=await fetch(TL+'?action=fileDownload&'+(ext?'fileName='+encodeURIComponent(nm)+'&extension='+encodeURIComponent(ext):'audio='+encodeURIComponent(fileId))+'&apiKey='+encodeURIComponent(process.env.TECHNOLINE_SYSTEM_KEY||''));
  if(!String(r.headers.get('content-type')).startsWith('audio'))throw new Error('recording not found');
  return Buffer.from(await r.arrayBuffer()).toString('base64');
 }
