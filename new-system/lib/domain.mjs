@@ -26,7 +26,9 @@ export async function login(db,nationalId,password){
  if(limit&&limit.failures>=5&&limit.until>now())fail('יותר מדי ניסיונות. נסו שוב בעוד רבע שעה',429);
  const p=await first(db,'SELECT * FROM participants WHERE nationalId=?',nationalId);
  const salt=p?.passwordHash?.split(':')[0]||'dummy-salt-for-timing'; const hash=await derive(String(password),salt);
- if(!p||p.passwordHash!==salt+':'+hash){await stmt(db,'INSERT INTO auth_limits(key,failures,until) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET failures=CASE WHEN auth_limits.until<? THEN 1 ELSE auth_limits.failures+1 END,until=excluded.until','login:'+nationalId,new Date(Date.now()+900000).toISOString(),now()).run();fail('פרטי התחברות שגויים',401)}
+ let ok=!!p&&p.passwordHash===salt+':'+hash;
+ if(p&&!p.passwordHash)for(const l of await rows(db,"SELECT payload FROM legacy WHERE kind='password' AND nationalId=?",nationalId)){const h=JSON.parse(l.payload).hash,s=h.split(':')[0];if(h===s+':'+await derive(String(password),s)){ok=true;await stmt(db,'UPDATE participants SET passwordHash=? WHERE id=? AND passwordHash IS NULL',h,p.id).run();break}}
+ if(!ok){await stmt(db,'INSERT INTO auth_limits(key,failures,until) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET failures=CASE WHEN auth_limits.until<? THEN 1 ELSE auth_limits.failures+1 END,until=excluded.until','login:'+nationalId,new Date(Date.now()+900000).toISOString(),now()).run();fail('פרטי התחברות שגויים',401)}
  if(p.blocked)fail('החשבון חסום. יש לפנות לצוות',403);
  const token=hex(crypto.getRandomValues(new Uint8Array(32)));
  await db.batch([stmt(db,'DELETE FROM auth_limits WHERE key=?','login:'+nationalId),stmt(db,'INSERT INTO sessions(tokenHash,participantId,expiresAt) VALUES(?,?,?)',await digest(token),p.id,new Date(Date.now()+1800000).toISOString())]);
