@@ -10,7 +10,7 @@ export function auditStatement(db,actor,action,target,details={}){return stmt(db
 export async function register(db,data){
  const nid=String(data.nationalId||'').trim();if(!/^\d{9}$/.test(nid))fail('יש להזין תעודת זהות בת 9 ספרות, כולל אפסים מובילים');
  if(!String(data.name||'').trim())fail('יש להזין שם');
- const pass=String(data.password||'');if(!/^\d{6,12}$/.test(pass))fail('הסיסמה צריכה להכיל 6 עד 12 ספרות');
+ const pass=String(data.password||'');if(!/^\d{4,12}$/.test(pass))fail('הסיסמה צריכה להכיל 4 עד 12 ספרות');
  if(data.recoveryPhone&&!/^0\d{8,9}$/.test(data.recoveryPhone))fail('טלפון שחזור לא תקין');
  const p={id:id(),nationalId:nid,name:String(data.name).trim(),passwordHash:await hashPassword(pass),recoveryPhone:data.recoveryPhone||null,institution:data.institution||null,createdAt:now()};
  try{await db.batch([stmt(db,'INSERT INTO participants(id,nationalId,name,passwordHash,recoveryPhone,institution,createdAt) VALUES(?,?,?,?,?,?,?)',p.id,p.nationalId,p.name,p.passwordHash,p.recoveryPhone,p.institution,p.createdAt),auditStatement(db,'registration','participant.register',p.id)]);}catch(e){if(String(e).includes('UNIQUE'))fail('תעודת הזהות כבר רשומה');throw e}

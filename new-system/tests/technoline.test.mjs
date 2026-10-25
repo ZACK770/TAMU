@@ -45,3 +45,16 @@ test('staff messages play in sequence, newest first, marked heard',async()=>{
  assert.equal(sql.prepare('SELECT COUNT(*) n FROM messages WHERE heardAt IS NOT NULL').get().n,2);
  r=await c(d,'5');assert.match(r.files[0].text,/אין הודעות חדשות/);
 });
+
+test('error handling: unknown id offers registration, wrong password retries, silence hangs up',async()=>{
+ const {db:d}=db();let c=call('call-err');
+ let r=await c(d);r=await c(d,'000000026');assert.match(r.files[0].text,/עוד לא רשומה.*להרשמה הקישו 1/);
+ r=await c(d,'1');assert.match(r.files[0].text,/בחרו סיסמה של 4 עד 12/);
+ r=await c(d,'1234');r=await c(d,'1234');assert.match(r.files[0].text,/נרשמתם/);
+ c=call('call-err2');r=await c(d);r=await c(d,'000000026');assert.match(r.files[0].text,/הקישו את הסיסמה/);
+ r=await c(d,'9999');assert.match(r.files[0].text,/הסיסמה שגויה. נסו שוב/);
+ r=await c(d,'1234');assert.match(r.files[0].text,/שלום/);
+ r=await c(d,'7');assert.match(r.files[0].text,/המקש הזה לא קיים כאן/);
+ c=call('call-err3');r=await c(d);r=await c(d,'ERROR');assert.match(r.files[0].text,/לא נקלטה הקשה/);
+ r=await c(d,'ERROR');r=await c(d,'ERROR');assert.match(r.files[0].text,/להתראות/);
+});
