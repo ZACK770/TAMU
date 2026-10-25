@@ -18,7 +18,7 @@ function question(s,a){
  const head=(a.question.bonus?'שאלת בונוס. ':'שאלה '+(a.answered+1)+' מתוך '+a.total+'. ');
  const opts=a.question.options.map((o,i)=>'לתשובה '+o+' הקישו '+(i+1)).join('. ');
  const r=prompt(s,head+(a.question.audioKey?'':(a.question.text||'')+'. ')+opts);
- if(a.question.audioKey?.startsWith('tl:'))r.files=[text(head),{fileId:a.question.audioKey.slice(3)},text(opts)];
+ if(a.question.audioKey?.startsWith('tl:'))r.files=[text(head),{fileId:a.question.audioKey.split(':')[1]},text(opts)];
  return r;
 }
 const loginPrompt=(s,prefix='')=>{s.stage='nationalId';return prompt(s,prefix+'הקישו תעודת זהות בת 9 ספרות. להרשמה חדשה הקישו 0 וסולמית.',1,9)};

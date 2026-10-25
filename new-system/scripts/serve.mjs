@@ -41,12 +41,12 @@ const server=createServer(async(req,res)=>{
     const staff=await S.authorizeStaff(db,request);if(!['admin','editor'].includes(staff.role))throw new DomainError('אין לך הרשאה',403);
     const key=process.env.TECHNOLINE_SYSTEM_KEY,ext=process.env.TECHNOLINE_AUDIO_EXTENSION;if(!key||!ext)throw new DomainError('העלאת שמע לא הוגדרה',500);
     const tl='https://api.tlivr.com/ivrFilesApi.php';
-    if(req.method==='GET'){const id=String(url.searchParams.get('key')||'').replace(/^tl:/,'');if(!/^\d+$/.test(id))throw new DomainError('קובץ לא תקין');const r=await fetch(tl+'?action=fileDownload&play=1&audio='+id+'&apiKey='+encodeURIComponent(key));return send(res,r.status,Buffer.from(await r.arrayBuffer()),{'Content-Type':r.headers.get('content-type')||'audio/mpeg'})}
+    if(req.method==='GET'){const nm=String(url.searchParams.get('key')||'').split(':')[2]||'';if(!/^q-\d+$/.test(nm))throw new DomainError('קובץ לא תקין');const r=await fetch(tl+'?action=fileDownload&play=1&fileName='+nm+'&extension='+ext+'&apiKey='+encodeURIComponent(key));if(!String(r.headers.get('content-type')).startsWith('audio'))throw new DomainError('הקובץ לא נמצא',404);return send(res,r.status,Buffer.from(await r.arrayBuffer()),{'Content-Type':r.headers.get('content-type')||'audio/mpeg'})}
     const type=String(url.searchParams.get('type')||'webm').replace(/[^a-z0-9]/g,'').slice(0,5)||'webm';
-    const fd=new FormData();fd.set('extensionId',ext);fd.set('name','q-'+Date.now());fd.set('checkDuplicate','BACKUP');fd.set('file',new Blob([raw]),'q.'+type);
+    const fd=new FormData();fd.set('extensionId',ext);const nm='q-'+Date.now();fd.set('name',nm);fd.set('checkDuplicate','BACKUP');fd.set('file',new Blob([raw]),'q.'+type);
     const j=await (await fetch(tl+'?action=uploadFile&apiKey='+encodeURIComponent(key),{method:'POST',body:fd})).json().catch(()=>({}));
     if(j.status!=='OK'||!j.fileId)throw new DomainError('העלאת השמע נכשלה'+(j.reason?': '+j.reason:''),502);
-    return json(res,200,{audioKey:'tl:'+j.fileId});
+    return json(res,200,{audioKey:'tl:'+j.fileId+':'+nm});
    }
    if(path==='/api/admin'&&req.method==='POST'){const staff=await S.authorizeStaff(db,request),b=JSON.parse(raw||'{}');return json(res,200,await handleAdmin(db,staff,String(b.action||''),b))}
    return json(res,404,{error:'לא נמצא'});
