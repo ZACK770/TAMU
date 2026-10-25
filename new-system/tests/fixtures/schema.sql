@@ -1,6 +1,6 @@
 PRAGMA foreign_keys=ON;
 CREATE TABLE participants(id TEXT PRIMARY KEY,regAudioKey TEXT,spokenInstitution TEXT,nationalId TEXT UNIQUE,name TEXT,passwordHash TEXT,recoveryPhone TEXT,institution TEXT,track TEXT DEFAULT 'easy',nextTrack TEXT,trackEffective TEXT,balance INTEGER DEFAULT 0 CONSTRAINT nonnegative_balance CHECK(balance>=0),debt INTEGER NOT NULL DEFAULT 0,blocked INTEGER DEFAULT 0,createdAt TEXT);
-CREATE TABLE exams(id TEXT PRIMARY KEY,title TEXT,materialKey TEXT,week TEXT,track TEXT,kind TEXT,opensAt TEXT,closesAt TEXT,questionCount INTEGER,bonusCount INTEGER NOT NULL DEFAULT 0,category TEXT,parsha TEXT,questions TEXT,published INTEGER DEFAULT 0,createdAt TEXT);
+CREATE TABLE exams(id TEXT PRIMARY KEY,title TEXT,materialKey TEXT,week TEXT,track TEXT,kind TEXT,opensAt TEXT,closesAt TEXT,questionCount INTEGER,bonusCount INTEGER NOT NULL DEFAULT 0,category TEXT,parsha TEXT,questions TEXT,published INTEGER DEFAULT 0,createdAt TEXT,examOptions TEXT);
 CREATE TABLE attempts(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),examId TEXT REFERENCES exams(id),materialKey TEXT,snapshot TEXT,completed INTEGER DEFAULT 0,score INTEGER DEFAULT 0,createdAt TEXT,completedAt TEXT,UNIQUE(participantId,materialKey));
 CREATE TABLE answers(id TEXT PRIMARY KEY,attemptId TEXT REFERENCES attempts(id),questionId TEXT,choice INTEGER,points INTEGER,createdAt TEXT,UNIQUE(attemptId,questionId));
 CREATE TABLE ledger(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),delta INTEGER,reason TEXT,reference TEXT UNIQUE,actor TEXT,createdAt TEXT);

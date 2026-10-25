@@ -19,11 +19,11 @@ async function playMsg(db,s,prefix=''){
  r.files=[text(prefix+'הודעה '+(s.idx+1)+' מתוך '+s.items.length+'. '+(m.subject||'הודעה מהצוות')+', מ'+day+'.'),m.replyAudioKey?.startsWith('tl:')?{fileId:m.replyAudioKey.split(':')[1],extensionId:process.env.TECHNOLINE_AUDIO_EXTENSION||''}:text(m.reply),...r.files];
  return r;
 }
-function question(s,a){
- if(a.completed)return menu(s,'המבחן הושלם. נזקפו לחשבונך '+a.score+' נקודות.');
+function question(s,a,pre=''){
+ if(a.completed)return menu(s,pre+'המבחן הושלם. '+(a.settings?.minScore&&!a.awarded?'לא הגעת לציון המינימלי, ולכן לא נזקפו נקודות.':a.settings?.sayPoints===false?'תודה.':'נזקפו לחשבונך '+(a.awarded??a.score)+' נקודות.'));
  if(!a.question)return menu(s,'לא נמצאה שאלה להמשך. יש לפנות לצוות.');
  s.stage='answer';s.attemptId=a.id;s.questionId=a.question.id;s.optionCount=a.question.options.length;
- const head=(a.question.bonus?'שאלת בונוס. ':'שאלה '+(a.answered+1)+' מתוך '+a.total+'. ');
+ const head=pre+(a.question.bonus?'שאלת בונוס. ':'שאלה '+(a.answered+1)+' מתוך '+a.total+'. ');
  const opts=a.question.options.map((o,i)=>'לתשובה '+o+' הקישו '+(i+1)).join('. ');
  const r=prompt(s,head+(a.question.audioKey?'':(a.question.text||'')+'. ')+opts);
  if(a.question.audioKey?.startsWith('tl:'))r.files=[text(head),{fileId:a.question.audioKey.split(':')[1],extensionId:process.env.TECHNOLINE_AUDIO_EXTENSION||''},text(opts)];
@@ -123,7 +123,7 @@ async function advance(db,s,input,params={}){
  }
  if(s.stage==='answer'){
   if(!/^[1-9]$/.test(input)||Number(input)>s.optionCount)return question(s,await D.startAttempt(db,s.pid,(await first(db,'SELECT examId FROM attempts WHERE id=?',s.attemptId)).examId));
-  const a=await D.answerQuestion(db,s.pid,s.attemptId,s.questionId,Number(input)-1);return question(s,a);
+  const a=await D.answerQuestion(db,s.pid,s.attemptId,s.questionId,Number(input)-1);let pre='';if(a.settings?.feedback){const x=await first(db,'SELECT points FROM answers WHERE attemptId=? AND questionId=?',s.attemptId,s.questionId);pre=Number(x?.points)>0?'תשובה נכונה. ':'תשובה לא נכונה. '}return question(s,a,pre);
  }
  if(s.stage==='benefitSelect'){
   const bid=s.items[Number(input)-1];const b=state.benefits.find(x=>x.id===bid);if(!b)return menu(s,'הבחירה אינה תקינה.');

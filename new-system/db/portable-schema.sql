@@ -1,7 +1,7 @@
 -- Local preview schema. Hosted Drizzle migrations must be generated before production deployment.
 PRAGMA foreign_keys=ON;
 CREATE TABLE participants(id TEXT PRIMARY KEY,regAudioKey TEXT,spokenInstitution TEXT,nationalId TEXT UNIQUE,name TEXT,passwordHash TEXT,recoveryPhone TEXT,institution TEXT,track TEXT DEFAULT 'easy',nextTrack TEXT,trackEffective TEXT,balance INTEGER DEFAULT 0 CONSTRAINT nonnegative_balance CHECK(balance>=0),debt INTEGER NOT NULL DEFAULT 0,blocked INTEGER DEFAULT 0,createdAt TEXT);
-CREATE TABLE exams(id TEXT PRIMARY KEY,title TEXT,materialKey TEXT,week TEXT,track TEXT,kind TEXT,opensAt TEXT,closesAt TEXT,questionCount INTEGER,bonusCount INTEGER NOT NULL DEFAULT 0,category TEXT,parsha TEXT,questions TEXT,published INTEGER DEFAULT 0,createdAt TEXT);
+CREATE TABLE exams(id TEXT PRIMARY KEY,title TEXT,materialKey TEXT,week TEXT,track TEXT,kind TEXT,opensAt TEXT,closesAt TEXT,questionCount INTEGER,bonusCount INTEGER NOT NULL DEFAULT 0,category TEXT,parsha TEXT,questions TEXT,published INTEGER DEFAULT 0,createdAt TEXT,examOptions TEXT);
 CREATE TABLE attempts(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),examId TEXT REFERENCES exams(id),materialKey TEXT,snapshot TEXT,completed INTEGER DEFAULT 0,score INTEGER DEFAULT 0,createdAt TEXT,completedAt TEXT,UNIQUE(participantId,materialKey));
 CREATE TABLE answers(id TEXT PRIMARY KEY,attemptId TEXT REFERENCES attempts(id),questionId TEXT,choice INTEGER,points INTEGER,createdAt TEXT,UNIQUE(attemptId,questionId));
 CREATE TABLE ledger(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),delta INTEGER,reason TEXT,reference TEXT UNIQUE,actor TEXT,createdAt TEXT);
@@ -21,7 +21,7 @@ CREATE TABLE shipments(id TEXT PRIMARY KEY,participantId TEXT REFERENCES partici
 CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT);
 PRAGMA foreign_keys=ON;
 CREATE TABLE b_participants(id TEXT PRIMARY KEY,nationalId TEXT UNIQUE,name TEXT,passwordHash TEXT,recoveryPhone TEXT,institution TEXT,track TEXT DEFAULT 'easy',nextTrack TEXT,trackEffective TEXT,balance INTEGER DEFAULT 0 CONSTRAINT nonnegative_balance CHECK(balance>=0),blocked INTEGER DEFAULT 0,createdAt TEXT);
-CREATE TABLE b_exams(id TEXT PRIMARY KEY,title TEXT,materialKey TEXT,week TEXT,track TEXT,kind TEXT,opensAt TEXT,closesAt TEXT,questionCount INTEGER,questions TEXT,published INTEGER DEFAULT 0,createdAt TEXT);
+CREATE TABLE b_exams(id TEXT PRIMARY KEY,title TEXT,materialKey TEXT,week TEXT,track TEXT,kind TEXT,opensAt TEXT,closesAt TEXT,questionCount INTEGER,questions TEXT,published INTEGER DEFAULT 0,createdAt TEXT,examOptions TEXT);
 CREATE TABLE b_attempts(id TEXT PRIMARY KEY,participantId TEXT REFERENCES b_participants(id),examId TEXT REFERENCES b_exams(id),materialKey TEXT,snapshot TEXT,completed INTEGER DEFAULT 0,score INTEGER DEFAULT 0,createdAt TEXT,completedAt TEXT,UNIQUE(participantId,materialKey));
 CREATE TABLE b_answers(id TEXT PRIMARY KEY,attemptId TEXT REFERENCES b_attempts(id),questionId TEXT,choice INTEGER,points INTEGER,createdAt TEXT,UNIQUE(attemptId,questionId));
 CREATE TABLE b_ledger(id TEXT PRIMARY KEY,participantId TEXT REFERENCES b_participants(id),delta INTEGER,reason TEXT,reference TEXT UNIQUE,actor TEXT,createdAt TEXT);
