@@ -1,6 +1,6 @@
 -- Local preview schema. Hosted Drizzle migrations must be generated before production deployment.
 PRAGMA foreign_keys=ON;
-CREATE TABLE participants(id TEXT PRIMARY KEY,nationalId TEXT UNIQUE,name TEXT,passwordHash TEXT,recoveryPhone TEXT,institution TEXT,track TEXT DEFAULT 'easy',nextTrack TEXT,trackEffective TEXT,balance INTEGER DEFAULT 0 CONSTRAINT nonnegative_balance CHECK(balance>=0),debt INTEGER NOT NULL DEFAULT 0,blocked INTEGER DEFAULT 0,createdAt TEXT);
+CREATE TABLE participants(id TEXT PRIMARY KEY,regAudioKey TEXT,spokenInstitution TEXT,nationalId TEXT UNIQUE,name TEXT,passwordHash TEXT,recoveryPhone TEXT,institution TEXT,track TEXT DEFAULT 'easy',nextTrack TEXT,trackEffective TEXT,balance INTEGER DEFAULT 0 CONSTRAINT nonnegative_balance CHECK(balance>=0),debt INTEGER NOT NULL DEFAULT 0,blocked INTEGER DEFAULT 0,createdAt TEXT);
 CREATE TABLE exams(id TEXT PRIMARY KEY,title TEXT,materialKey TEXT,week TEXT,track TEXT,kind TEXT,opensAt TEXT,closesAt TEXT,questionCount INTEGER,bonusCount INTEGER NOT NULL DEFAULT 0,category TEXT,parsha TEXT,questions TEXT,published INTEGER DEFAULT 0,createdAt TEXT);
 CREATE TABLE attempts(id TEXT PRIMARY KEY,participantId TEXT REFERENCES participants(id),examId TEXT REFERENCES exams(id),materialKey TEXT,snapshot TEXT,completed INTEGER DEFAULT 0,score INTEGER DEFAULT 0,createdAt TEXT,completedAt TEXT,UNIQUE(participantId,materialKey));
 CREATE TABLE answers(id TEXT PRIMARY KEY,attemptId TEXT REFERENCES attempts(id),questionId TEXT,choice INTEGER,points INTEGER,createdAt TEXT,UNIQUE(attemptId,questionId));
@@ -42,3 +42,4 @@ CREATE TABLE b_settings(key TEXT PRIMARY KEY,value TEXT);
 CREATE TABLE b_web_attempts(attemptId TEXT PRIMARY KEY REFERENCES b_attempts(id),settings TEXT NOT NULL,payload TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 0,finalized INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS staff_accounts(id TEXT PRIMARY KEY,username TEXT UNIQUE NOT NULL,name TEXT,passwordHash TEXT NOT NULL,role TEXT NOT NULL,scope TEXT,active INTEGER NOT NULL DEFAULT 1,createdAt TEXT);
 CREATE TABLE IF NOT EXISTS staff_sessions(tokenHash TEXT PRIMARY KEY,staffId TEXT REFERENCES staff_accounts(id),expiresAt TEXT);
+CREATE TABLE IF NOT EXISTS institutions(id TEXT PRIMARY KEY,name TEXT UNIQUE NOT NULL,aliases TEXT NOT NULL DEFAULT '[]',createdAt TEXT);

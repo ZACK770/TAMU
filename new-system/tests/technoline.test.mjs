@@ -15,7 +15,9 @@ test('phone self-registration, menu, and voice message',async()=>{
  r=await c(d,'654321');assert.match(r.files[0].text,/שוב/);
  r=await c(d,'111111');assert.match(r.files[0].text,/אינן תואמות/);
  r=await c(d,'654321');r=await c(d,'654321');assert.match(r.files[0].text,/נרשמתם/);
- r=await c(d,'0521234567');assert.match(r.files[0].text,/טלפון השחזור נשמר/);
+ r=await c(d,'0521234567');assert.equal(r.type,'record');assert.match(r.files[0].text,/טלפון השחזור נשמר/);
+ r=await c(d,'v.wav',{['FILEID_'+r.name]:'F10'});assert.match(r.files[0].text,/ההרשמה הושלמה/);
+ assert.equal(sql.prepare('SELECT regAudioKey FROM participants WHERE nationalId=?').get('123456782').regAudioKey,'technoline:F10');
  assert.equal(sql.prepare('SELECT recoveryPhone FROM participants WHERE nationalId=?').get('123456782').recoveryPhone,'0521234567');
  r=await c(d,'6');assert.equal(r.type,'record');
  r=await c(d,'msg.wav',{['FILEID_'+r.name]:'F77'});assert.match(r.files[0].text,/ההודעה נשמרה/);

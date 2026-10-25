@@ -1,4 +1,5 @@
 import * as D from './domain.mjs';
+import * as STT from './transcribe.mjs';
 const text=value=>({text:value});
 const token=()=>crypto.randomUUID().replaceAll('-','');
 const statement=(db,sql,...args)=>db.prepare(sql).bind(...args);
@@ -41,8 +42,14 @@ async function advance(db,s,input,params={}){
   s.stage='regPhone';return prompt(s,'נרשמתם בהצלחה. כדי שתוכלו לשחזר סיסמה, הקישו מספר טלפון ובסיום סולמית. לדילוג הקישו סולמית.',1,10);
  }
  if(s.stage==='regPhone'){
-  if(/^0\d{8,9}$/.test(input)){await statement(db,'UPDATE participants SET recoveryPhone=? WHERE id=?',input,s.pid).run();return menu(s,'טלפון השחזור נשמר.');}
-  return menu(s,input==='ERROR'?'':'המספר אינו תקין ולא נשמר. ניתן לעדכן דרך הצוות.');
+  let note='';if(/^0\d{8,9}$/.test(input)){await statement(db,'UPDATE participants SET recoveryPhone=? WHERE id=?',input,s.pid).run();note='טלפון השחזור נשמר. ';}else if(input!=='ERROR')note='המספר אינו תקין ולא נשמר. ';
+  s.stage='regVoice';s.field='tv_'+token();
+  return {type:'record',name:s.field,max:20,min:1,confirm:'no',hangupSave:'yes',files:[text(note+'לאחר הצליל אמרו את שמכם המלא ואת שם הישיבה שבה אתם לומדים, ובסיום הקישו סולמית.')]};
+ }
+ if(s.stage==='regVoice'){
+  const fileId=params['FILEID_'+s.field];
+  if(fileId){await statement(db,'UPDATE participants SET regAudioKey=? WHERE id=?','technoline:'+fileId,s.pid).run();STT.transcribeRegistration(db,s.pid,fileId);}
+  return menu(s,'תודה, ההרשמה הושלמה.');
  }
  if(s.stage==='nationalId'){
   if(!/^\d{9}$/.test(input))return loginPrompt(s,'תעודת הזהות אינה תקינה. ');
@@ -76,18 +83,23 @@ async function advance(db,s,input,params={}){
   }
   if(input==='5'){
    const replies=state.messages.filter(m=>m.reply).slice(0,10);
-   return menu(s,replies.length?replies.map(m=>'תשובה בנושא '+m.subject+'. '+m.reply).join('. '):'אין תשובות חדשות.');
+   const replies2=state.messages.filter(m=>m.reply||m.replyAudioKey).slice(0,10);
+   if(!replies2.length)return menu(s,'אין תשובות חדשות.');
+   const r=menu(s,'');r.files=[...replies2.flatMap(m=>[text('תשובה בנושא '+m.subject+'.'),m.replyAudioKey?.startsWith('tl:')?{fileId:m.replyAudioKey.split(':')[1],extensionId:process.env.TECHNOLINE_AUDIO_EXTENSION||''}:text(m.reply)]),...r.files];return r;
   }
   if(input==='6'){
+   const recent=await first(db,'SELECT COUNT(*) AS n FROM messages WHERE participantId=? AND audioKey IS NOT NULL AND createdAt>?',s.pid,new Date(Date.now()-864e5).toISOString());
+   if(Number(recent?.n)>=2)return menu(s,'ניתן להשאיר עד 2 הודעות ביממה. נסו שוב מחר.');
    s.stage='record';s.field='tv_'+token();
-   return {type:'record',name:s.field,max:120,min:2,confirm:'confirmOnly',hangupSave:'yes',files:[text('השאירו הודעה לצוות לאחר הצליל. בסיום הקישו סולמית.')]};
+   return {type:'record',name:s.field,max:30,min:2,confirm:'confirmOnly',hangupSave:'yes',files:[text('השאירו הודעה לצוות לאחר הצליל, עד 30 שניות. בסיום הקישו סולמית.')]};
   }
   return menu(s,'הבחירה אינה תקינה.');
  }
  if(s.stage==='record'){
   const fileId=params['FILEID_'+s.field];
   if(!fileId)return menu(s,'ההקלטה לא נשמרה.');
-  await D.addMessage(db,s.pid,{subject:'הודעה קולית מהטלפון',audioKey:'technoline:'+fileId});
+  const mid=await D.addMessage(db,s.pid,{subject:'הודעה קולית מהטלפון',audioKey:'technoline:'+fileId});
+  if(mid)STT.transcribeMessage(db,mid,fileId);
   return menu(s,'ההודעה נשמרה. תשובת הצוות תושמע בתפריט התשובות.');
  }
  if(s.stage==='examSelect'){

@@ -38,10 +38,10 @@ const server=createServer(async(req,res)=>{
    if(path==='/api/staff/logout'){await S.staffLogout(db,request);return json(res,200,{ok:true},{'Set-Cookie':S.staffCookie('',secure,true)})}
    if(path==='/api/staff/me')return json(res,200,{staff:await S.authorizeStaff(db,request)});
    if(path==='/api/admin/audio'){
-    const staff=await S.authorizeStaff(db,request);if(!['admin','editor'].includes(staff.role))throw new DomainError('אין לך הרשאה',403);
+    const staff=await S.authorizeStaff(db,request);if(!['admin','editor','support'].includes(staff.role))throw new DomainError('אין לך הרשאה',403);
     const key=process.env.TECHNOLINE_SYSTEM_KEY,ext=process.env.TECHNOLINE_AUDIO_EXTENSION;if(!key||!ext)throw new DomainError('העלאת שמע לא הוגדרה',500);
     const tl='https://api.tlivr.com/ivrFilesApi.php';
-    if(req.method==='GET'){const nm=String(url.searchParams.get('key')||'').split(':')[2]||'';if(!/^q-\d+$/.test(nm))throw new DomainError('קובץ לא תקין');const r=await fetch(tl+'?action=fileDownload&play=1&fileName='+nm+'&extension='+ext+'&apiKey='+encodeURIComponent(key));if(!String(r.headers.get('content-type')).startsWith('audio'))throw new DomainError('הקובץ לא נמצא',404);return send(res,r.status,Buffer.from(await r.arrayBuffer()),{'Content-Type':r.headers.get('content-type')||'audio/mpeg'})}
+    if(req.method==='GET'){const nm=String(url.searchParams.get('key')||'').split(':')[2]||'';const tid=/^technoline:(\d+)$/.exec(String(url.searchParams.get('key')||''))?.[1];if(!tid&&!/^q-\d+$/.test(nm))throw new DomainError('קובץ לא תקין');const r=await fetch(tl+'?action=fileDownload&play=1&'+(tid?'audio='+tid:'fileName='+nm+'&extension='+ext)+'&apiKey='+encodeURIComponent(key));if(!String(r.headers.get('content-type')).startsWith('audio'))throw new DomainError('הקובץ לא נמצא',404);return send(res,r.status,Buffer.from(await r.arrayBuffer()),{'Content-Type':r.headers.get('content-type')||'audio/mpeg'})}
     const type=String(url.searchParams.get('type')||'webm').replace(/[^a-z0-9]/g,'').slice(0,5)||'webm';
     const fd=new FormData();fd.set('extensionId',ext);const nm='q-'+Date.now();fd.set('name',nm);fd.set('checkDuplicate','BACKUP');fd.set('file',new Blob([raw]),'q.'+type);
     const j=await (await fetch(tl+'?action=uploadFile&apiKey='+encodeURIComponent(key),{method:'POST',body:fd})).json().catch(()=>({}));

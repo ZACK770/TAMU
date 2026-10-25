@@ -6,7 +6,7 @@ const fail=(m,s=400)=>{throw new D.DomainError(m,s)};
 const can={
  admin:()=>true,
  editor:a=>['overview','exams','saveExam','templates','saveTemplates','messages','reply'].includes(a),
- support:a=>['overview','participants','participant','pointsReport','messages','reply'].includes(a),
+ support:a=>['overview','participants','participant','pointsReport','messages','reply','institutions','institutionQueue','assignInstitution'].includes(a),
  merchant:a=>['overview','lookupOrder','redeem','merchantOrders'].includes(a)
 };
 const pub=p=>p&&({id:p.id,nationalId:p.nationalId,name:p.name,institution:p.institution,recoveryPhone:p.recoveryPhone,track:p.track,nextTrack:p.nextTrack,trackEffective:p.trackEffective,balance:p.balance,debt:p.debt,blocked:p.blocked,createdAt:p.createdAt});
@@ -53,7 +53,17 @@ export async function handleAdmin(db,staff,action,b={}){
    const {snapshot,...rest}=o;return {order:{...rest,title:JSON.parse(snapshot).title}};
   }
   case 'messages':return {messages:await rows(db,'SELECT m.*,p.name,p.nationalId FROM messages m JOIN participants p ON p.id=m.participantId ORDER BY m.createdAt DESC LIMIT 300')};
-  case 'reply':await db.batch([q(db,"UPDATE messages SET reply=?,status='answered' WHERE id=?",String(b.reply||'').slice(0,2000),b.id),D.auditStatement(db,actor,'message.reply',b.id)]);return {ok:true};
+  case 'institutions':return {institutions:await rows(db,'SELECT i.*,(SELECT COUNT(*) FROM participants p WHERE p.institution=i.name) AS n FROM institutions i ORDER BY i.name')};
+  case 'institutionQueue':return {queue:(await rows(db,'SELECT * FROM participants WHERE spokenInstitution IS NOT NULL AND institution IS NULL ORDER BY createdAt DESC LIMIT 300')).map(p=>({...pub(p),spokenInstitution:p.spokenInstitution,regAudioKey:p.regAudioKey}))};
+  case 'saveInstitution':{const name=String(b.name||'').trim().slice(0,120);if(!name)fail('חסר שם מוסד');const al=JSON.stringify([...new Set((b.aliases||[]).map(s=>String(s).trim().slice(0,120)).filter(Boolean))].slice(0,50));
+   if(b.id){const old=await q(db,'SELECT name FROM institutions WHERE id=?',b.id).first();if(!old)fail('מוסד לא נמצא',404);await db.batch([q(db,'UPDATE institutions SET name=?,aliases=? WHERE id=?',name,al,b.id),q(db,'UPDATE participants SET institution=? WHERE institution=?',name,old.name),D.auditStatement(db,actor,'institution.save',b.id,{name})]);return {id:b.id}}
+   const nid=crypto.randomUUID();await db.batch([q(db,'INSERT INTO institutions(id,name,aliases,createdAt) VALUES(?,?,?,?)',nid,name,al,D.now()),D.auditStatement(db,actor,'institution.create',nid,{name})]);return {id:nid}}
+  case 'assignInstitution':{const ids=[...new Set(b.ids||[])].slice(0,5000),name=String(b.institution||'').trim().slice(0,120)||null;if(!ids.length)fail('לא נבחרו משתתפים');
+   let inst=name&&await q(db,'SELECT * FROM institutions WHERE name=?',name).first();if(name&&!inst){const nid=crypto.randomUUID();await q(db,'INSERT INTO institutions(id,name,aliases,createdAt) VALUES(?,?,?,?)',nid,name,'[]',D.now()).run();inst={id:nid,name,aliases:'[]'}}
+   const al=new Set(JSON.parse(inst?.aliases||'[]'));
+   for(let i=0;i<ids.length;i+=500){const part=ids.slice(i,i+500),ph=part.map(()=>'?').join(',');if(b.learn&&inst)for(const p of await rows(db,`SELECT spokenInstitution FROM participants WHERE id IN (${ph})`,...part))if(p.spokenInstitution&&p.spokenInstitution!==inst.name)al.add(p.spokenInstitution);await q(db,`UPDATE participants SET institution=? WHERE id IN (${ph})`,name,...part).run()}
+   const st=[D.auditStatement(db,actor,'institution.assign',name||'',{count:ids.length})];if(inst)st.push(q(db,'UPDATE institutions SET aliases=? WHERE id=?',JSON.stringify([...al]),inst.id));await db.batch(st);return {ok:ids.length}}
+  case 'reply':{const ak=b.replyAudioKey&&/^tl:\d+:q-\d+$/.test(b.replyAudioKey)?b.replyAudioKey:null,txt=String(b.reply||'').trim().slice(0,2000);if(!txt&&!ak)fail('חסרה תשובה');await db.batch([q(db,"UPDATE messages SET reply=?,replyAudioKey=?,status='answered' WHERE id=?",txt,ak,b.id),D.auditStatement(db,actor,'message.reply',b.id)]);return {ok:true}}
   case 'staff':return {staff:await rows(db,'SELECT id,username,name,role,scope,active,createdAt FROM staff_accounts ORDER BY createdAt')};
   case 'createStaff':return {staff:await S.createStaff(db,b.data,actor)};
   case 'staffActive':if(b.id===actor)fail('אי אפשר להשבית את עצמך');await S.setStaffActive(db,b.id,!!b.active,actor);return {ok:true};
