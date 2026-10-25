@@ -45,3 +45,12 @@ test('bonus questions drawn separately; bonus flag exposed; pool validated',asyn
  for(let i=0;i<2;i++){assert.equal(a.question.bonus,false);a=await D.answerQuestion(db,p.id,a.id,a.question.id,0)}
  assert.equal(a.question.id,'b1');assert.equal(a.question.bonus,true);const end=await D.answerQuestion(db,p.id,a.id,'b1',0);assert.equal(end.score,9);
 });
+test('shortfall deduction: reject, clamp to zero, or record debt; idempotent',async()=>{
+ const {db}=setup(),p=await register(db);await D.adjustPoints(db,p.id,30,'opening','admin','o');
+ await assert.rejects(D.adjustPoints(db,p.id,-50,'fraud','admin','k1'));
+ await D.adjustPoints(db,p.id,-50,'fraud','admin','k2','debt');await D.adjustPoints(db,p.id,-50,'fraud','admin','k2','debt');
+ let s=await D.getParticipant(db,p.id);assert.equal(s.balance,0);assert.equal(s.debt,20);
+ await D.adjustPoints(db,p.id,25,'exam','admin','k3');s=await D.getParticipant(db,p.id);assert.equal(s.balance,5);assert.equal(s.debt,0);
+ await D.adjustPoints(db,p.id,-9,'fraud','admin','k4','clamp');s=await D.getParticipant(db,p.id);assert.equal(s.balance,0);assert.equal(s.debt,0);
+ await assert.rejects(D.adjustPoints(db,p.id,-9,'fraud','admin','k5','clamp'));
+});
