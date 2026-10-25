@@ -6,7 +6,7 @@ const fail=(m,s=400)=>{throw new D.DomainError(m,s)};
 const can={
  admin:()=>true,
  editor:a=>['overview','exams','saveExam','messages','reply'].includes(a),
- support:a=>['overview','participants','participant','messages','reply'].includes(a),
+ support:a=>['overview','participants','participant','pointsReport','messages','reply'].includes(a),
  merchant:a=>['overview','lookupOrder','redeem','merchantOrders'].includes(a)
 };
 const pub=p=>p&&({id:p.id,nationalId:p.nationalId,name:p.name,institution:p.institution,recoveryPhone:p.recoveryPhone,track:p.track,nextTrack:p.nextTrack,trackEffective:p.trackEffective,balance:p.balance,debt:p.debt,blocked:p.blocked,createdAt:p.createdAt});
@@ -18,6 +18,7 @@ export async function handleAdmin(db,staff,action,b={}){
   case 'ivrStep':{const {handleTechnolineCall}=await import('./technoline.mjs');const p={PBXcallId:'sim-'+actor+'-'+String(b.callId||'').slice(0,60),PBXphone:'0000000000'};if(b.field){p[b.field]=String(b.value??'');if(b.fileId)p['FILEID_'+b.field]=String(b.fileId)}if(b.hangup)p.PBXcallStatus='HANGUP';return {response:await handleTechnolineCall(db,p)}}
   case 'overview':return {staff,counts:staff.role==='merchant'?{}:(await q(db,"SELECT (SELECT COUNT(*) FROM participants) AS participants,(SELECT COUNT(*) FROM orders WHERE status='pending') AS pendingOrders,(SELECT COUNT(*) FROM messages WHERE status='open') AS openMessages,(SELECT COUNT(*) FROM exams WHERE published=1 AND opensAt<=? AND closesAt>?) AS activeExams",t,t).first())};
   case 'participants':{const s='%'+String(b.search||'').trim()+'%',off=Math.max(0,Math.trunc(Number(b.page)||0))*100;const total=Number((await q(db,'SELECT COUNT(*) AS n FROM participants WHERE nationalId LIKE ? OR name LIKE ?',s,s).first()).n);return {total,participants:(await rows(db,'SELECT * FROM participants WHERE nationalId LIKE ? OR name LIKE ? ORDER BY name,nationalId LIMIT 100 OFFSET ?',s,s,off)).map(pub)}}
+  case 'pointsReport':{const P=await import('./points-source.mjs');return {categories:P.CATEGORIES,...await P.pointsReport(db,b)}}
   case 'participant':{const st=await D.participantState(db,b.id);return {...st,participant:pub(await D.getParticipant(db,b.id)),attempts:await rows(db,'SELECT a.id,a.score,a.completed,a.createdAt,e.title FROM attempts a JOIN exams e ON e.id=a.examId WHERE a.participantId=? ORDER BY a.createdAt DESC LIMIT 200',b.id).catch(()=>[])}}
   case 'register':return {participant:pub(await D.register(db,b.data))};
   case 'adjust':return {entry:await D.adjustPoints(db,b.participantId,Number(b.delta),b.reason,actor,b.requestKey)};
