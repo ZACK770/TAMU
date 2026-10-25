@@ -3,7 +3,7 @@ const rows=async(db,s,...a)=>(await db.prepare(s).bind(...a).all()).results;
 export function classifyLegacyLog(r){
  const delta=Number(r.Points)||0,log=String(r.Log||'');
  const category=log.startsWith('Examination')?'exam':/יפה נוף|אור החיים/.test(log)?'card':/העברה/.test(log)?'transfer':delta<0?'redemption':'other';
- return {category,delta,label:category==='exam'?'מבחן':log,where:'ימות '+(r.Folder||''),date:r.Date?r.Date+'T'+(r.Time||'00:00:00'):null,school:r.School||''};
+ return {category,delta,label:category==='exam'?'מבחן':log,where:'ימות '+(r.Folder||''),date:r.Date?r.Date+'T'+(r.Time||'00:00:00'):null};
 }
 export function classifyLedger(l){
  const p=String(l.reference||'').split(':')[0];
@@ -14,7 +14,7 @@ export async function pointsReport(db,f={}){
  const nid=String(f.nationalId||'').trim(),people=new Map();
  for(const p of await rows(db,'SELECT id,nationalId,name,institution FROM participants'+(nid?' WHERE nationalId=?':''),...(nid?[nid]:[])))people.set(p.nationalId,p);
  const byId=new Map([...people.values()].map(p=>[p.id,p])),out=[];
- const add=(e,nationalId)=>{const p=people.get(nationalId);out.push({...e,nationalId,name:p?.name||'',institution:p?.institution||e.school||'',categoryName:CATEGORIES[e.category]})};
+ const add=(e,nationalId)=>{const p=people.get(nationalId);out.push({...e,nationalId,name:p?.name||'',institution:p?.institution||'',categoryName:CATEGORIES[e.category]})};
  if(f.system!=='new'){
   for(const l of await rows(db,"SELECT nationalId,kind,payload,createdAt FROM legacy WHERE kind IN ('points_log','admin_adjustment','opening_debt')"+(nid?' AND nationalId=?':''),...(nid?[nid]:[]))){
    const r=JSON.parse(l.payload);
