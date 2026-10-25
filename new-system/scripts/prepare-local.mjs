@@ -1,0 +1,12 @@
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {BRAND} from '../lib/youth.mjs';
+const tables=['participants','exams','attempts','answers','ledger','benefits','cards','orders','messages','staff','audit','sessions','auth_limits','legacy','shipments','settings'];
+const base=readFileSync(new URL('../tests/fixtures/schema.sql',import.meta.url),'utf8');
+const pattern=new RegExp('\\b('+tables.join('|')+')\\b','g');
+let youth=base.replace(pattern,s=>'b_'+s).replace(/\b(ledger_apply|ledger_no_update|ledger_no_delete)\b/g,s=>'b_'+s);
+youth+='\nCREATE TABLE b_web_attempts(attemptId TEXT PRIMARY KEY REFERENCES b_attempts(id),settings TEXT NOT NULL,payload TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 0,finalized INTEGER NOT NULL DEFAULT 0);\n';
+mkdirSync(new URL('../db/',import.meta.url),{recursive:true});
+writeFileSync(new URL('../db/portable-schema.sql',import.meta.url),'-- Local preview schema. Hosted Drizzle migrations must be generated before production deployment.\n'+base+'\n'+youth);
+mkdirSync(new URL('../public/bifnim/',import.meta.url),{recursive:true});
+writeFileSync(new URL('../public/bifnim/copy.mjs',import.meta.url),'export const BRAND = '+JSON.stringify(BRAND,null,2)+';\n');
+console.log('Prepared local schema and shared youth copy.');
