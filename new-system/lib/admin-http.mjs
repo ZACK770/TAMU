@@ -5,7 +5,7 @@ const rows=async(db,s,...a)=>(await q(db,s,...a).all()).results;
 const fail=(m,s=400)=>{throw new D.DomainError(m,s)};
 const can={
  admin:()=>true,
- editor:a=>['overview','exams','saveExam','messages','reply'].includes(a),
+ editor:a=>['overview','exams','saveExam','templates','saveTemplates','messages','reply'].includes(a),
  support:a=>['overview','participants','participant','pointsReport','messages','reply'].includes(a),
  merchant:a=>['overview','lookupOrder','redeem','merchantOrders'].includes(a)
 };
@@ -20,6 +20,9 @@ export async function handleAdmin(db,staff,action,b={}){
   case 'participants':{const s='%'+String(b.search||'').trim()+'%',off=Math.max(0,Math.trunc(Number(b.page)||0))*100;const total=Number((await q(db,'SELECT COUNT(*) AS n FROM participants WHERE nationalId LIKE ? OR name LIKE ?',s,s).first()).n);return {total,participants:(await rows(db,'SELECT * FROM participants WHERE nationalId LIKE ? OR name LIKE ? ORDER BY name,nationalId LIMIT 100 OFFSET ?',s,s,off)).map(pub)}}
   case 'pointsReport':{const P=await import('./points-source.mjs');return {categories:P.CATEGORIES,...await P.pointsReport(db,b)}}
   case 'participant':{const st=await D.participantState(db,b.id);return {...st,participant:pub(await D.getParticipant(db,b.id)),attempts:await rows(db,'SELECT a.id,a.score,a.completed,a.createdAt,e.title FROM attempts a JOIN exams e ON e.id=a.examId WHERE a.participantId=? ORDER BY a.createdAt DESC LIMIT 200',b.id).catch(()=>[])}}
+  case 'templates':{const r=await q(db,'SELECT value FROM settings WHERE key=?','examTemplates').first();return {templates:r?JSON.parse(r.value):[]}}
+  case 'saveTemplates':{const list=(Array.isArray(b.templates)?b.templates:[]).slice(0,50).map(x=>({id:String(x.id||crypto.randomUUID()),name:String(x.name||'').trim().slice(0,80),track:x.track==='challenging'?'challenging':'easy',kind:x.kind==='maamar'?'maamar':'sicha',openDay:Math.min(6,Math.max(0,Math.trunc(Number(x.openDay)||0))),openTime:/^\d\d:\d\d$/.test(x.openTime)?x.openTime:'08:00',closeDay:Math.min(6,Math.max(0,Math.trunc(Number(x.closeDay)||0))),closeTime:/^\d\d:\d\d$/.test(x.closeTime)?x.closeTime:'23:00',questionCount:Math.max(1,Math.trunc(Number(x.questionCount)||6)),bonusCount:Math.max(0,Math.trunc(Number(x.bonusCount)||0)),points:Math.max(1,Math.trunc(Number(x.points)||1)),bonusPoints:Math.max(1,Math.trunc(Number(x.bonusPoints)||1)),published:!!x.published}));if(list.some(x=>!x.name))fail('לכל תבנית חובה שם');
+   await db.batch([q(db,'INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value','examTemplates',JSON.stringify(list)),D.auditStatement(db,actor,'templates.save','examTemplates',{count:list.length})]);return {templates:list}}
   case 'participantIds':{const s='%'+String(b.search||'').trim()+'%';return {ids:(await rows(db,'SELECT id FROM participants WHERE nationalId LIKE ? OR name LIKE ? LIMIT 5000',s,s)).map(r=>r.id)}}
   case 'participantsByIds':{const ids=(b.ids||[]).slice(0,5000),out=[];for(let i=0;i<ids.length;i+=500){const part=ids.slice(i,i+500);out.push(...await rows(db,`SELECT * FROM participants WHERE id IN (${part.map(()=>'?').join(',')})`,...part))}return {participants:out.map(pub)}}
   case 'bulk':{const ids=[...new Set(b.ids||[])].slice(0,5000);if(!ids.length)fail('לא נבחרו משתתפים');if(b.op==='adjust'&&(!Number(b.delta)||!String(b.reason||'').trim()))fail('נדרשים סכום וסיבה');const txt=String(b.text||'').trim().slice(0,2000);if(b.op==='message'&&!txt)fail('חסר תוכן הודעה');const res={ok:0,failed:[]};
