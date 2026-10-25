@@ -64,6 +64,7 @@ export async function handleYouthHttp(raw,req,path,authorizeAdmin){
   case 'order':result=await Y.youthOrder(raw,m.id,b.benefitId,Number(b.quantity),b.requestKey);break;
   case 'cancel':result=await Y.youthCancel(raw,m.id,b.orderId);break;
   case 'message':result=await Y.youthMessage(raw,m.id,b);break;
+  case 'redeem':await throttle(raw,req,'redeem',30);result=await Y.redeemBookletCode(raw,m.id,b.code);break;
   case 'card':result=await D.linkCard(Y.youthDb(raw),m.id,b.network,b.number,m.id);break;
   default:throw new D.DomainError('הפעולה לא נמצאה',404);
  }

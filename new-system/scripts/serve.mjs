@@ -8,6 +8,7 @@ import {handleTechnolineCall} from '../lib/technoline.mjs';
 import {DomainError} from '../lib/domain.mjs';
 import * as S from '../lib/staff.mjs';
 import {handleAdmin} from '../lib/admin-http.mjs';
+import * as BK from '../lib/booklets.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url)),port=Number(process.env.PORT||10000);
 const origin=process.env.RENDER_EXTERNAL_URL||process.env.PUBLIC_ORIGIN||'http://localhost:'+port;
 if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL required');
@@ -31,12 +32,18 @@ const server=createServer(async(req,res)=>{
    return json(res,200,await handleTechnolineCall(db,params));
   }
   if(path.startsWith('/api/')){
-   const raw=await body(req,path==='/api/admin/audio'?2*1024*1024:1024*1024);
+   const raw=await body(req,path==='/api/admin/audio'?2*1024*1024:path==='/api/admin/booklet-file'?40*1024*1024:1024*1024);
    const request=new Request(url,{method:req.method,headers:{...req.headers,'x-local-client':clientIp(req)},...(['GET','HEAD'].includes(req.method)?{}:{body:raw})});
    if(path.startsWith('/api/youth/')){const out=await handleYouthHttp(db,request,path.slice(5),r=>S.authorizeStaff(db,r));return send(res,out.status,Buffer.from(await out.arrayBuffer()),Object.fromEntries(out.headers))}
    if(path==='/api/staff/login'&&req.method==='POST'){const b=JSON.parse(raw||'{}'),a=await S.staffLogin(db,b.username,b.password);return json(res,200,{staff:a.staff},{'Set-Cookie':S.staffCookie(a.token,secure)})}
    if(path==='/api/staff/logout'){await S.staffLogout(db,request);return json(res,200,{ok:true},{'Set-Cookie':S.staffCookie('',secure,true)})}
    if(path==='/api/staff/me')return json(res,200,{staff:await S.authorizeStaff(db,request)});
+   if(path==='/api/admin/booklet-file'||path==='/api/admin/booklet-export'){
+    const staff=await S.authorizeStaff(db,request);if(staff.role!=='admin')throw new DomainError('אין לך הרשאה',403);const p=url.searchParams;
+    if(path==='/api/admin/booklet-file'&&req.method==='POST')return json(res,200,await BK.addFile(db,p.get('booklet'),p.get('kind'),p.get('name'),raw));
+    const out=await BK.exportBooklet(db,p.get('id'),p.get('mode'),process.env.BIFNIM_PUBLIC_ORIGIN||origin,p.get('from'),p.get('to'));
+    return send(res,200,out.data,{'Content-Type':out.type,'Content-Disposition':'attachment; filename="'+out.name+'"'});
+   }
    if(path==='/api/admin/audio'){
     const staff=await S.authorizeStaff(db,request);if(!['admin','editor','support'].includes(staff.role))throw new DomainError('אין לך הרשאה',403);
     const key=process.env.TECHNOLINE_SYSTEM_KEY,ext=process.env.TECHNOLINE_AUDIO_EXTENSION;if(!key||!ext)throw new DomainError('העלאת שמע לא הוגדרה',500);

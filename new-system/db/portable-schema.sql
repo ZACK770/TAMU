@@ -43,3 +43,6 @@ CREATE TABLE b_web_attempts(attemptId TEXT PRIMARY KEY REFERENCES b_attempts(id)
 CREATE TABLE IF NOT EXISTS staff_accounts(id TEXT PRIMARY KEY,username TEXT UNIQUE NOT NULL,name TEXT,passwordHash TEXT NOT NULL,role TEXT NOT NULL,scope TEXT,active INTEGER NOT NULL DEFAULT 1,createdAt TEXT);
 CREATE TABLE IF NOT EXISTS staff_sessions(tokenHash TEXT PRIMARY KEY,staffId TEXT REFERENCES staff_accounts(id),expiresAt TEXT);
 CREATE TABLE IF NOT EXISTS institutions(id TEXT PRIMARY KEY,name TEXT UNIQUE NOT NULL,aliases TEXT NOT NULL DEFAULT '[]',createdAt TEXT);
+CREATE TABLE b_booklets(id TEXT PRIMARY KEY,title TEXT NOT NULL,examId TEXT,createdAt TEXT);
+CREATE TABLE b_booklet_files(id TEXT PRIMARY KEY,bookletId TEXT NOT NULL,kind TEXT NOT NULL,name TEXT,ord INTEGER DEFAULT 0,data TEXT NOT NULL,createdAt TEXT);
+CREATE TABLE b_booklet_codes(code TEXT PRIMARY KEY,bookletId TEXT NOT NULL,serial INTEGER NOT NULL,participantId TEXT,usedAt TEXT,voided INTEGER DEFAULT 0,createdAt TEXT);

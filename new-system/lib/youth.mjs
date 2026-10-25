@@ -49,6 +49,8 @@ async function ownedAttempt(db,pid,aid){const a=await first(db,'SELECT * FROM at
 export async function startYouthAttempt(raw,pid,eid){
  const db=youthDb(raw),p=await activeParticipant(db,pid),e=await first(db,'SELECT * FROM exams WHERE id=?',eid);
  if(!e||!e.published||e.opensAt>D.now()||e.closesAt<=D.now())fail('האתגר הזה אינו פתוח כרגע.');
+ const bk=await raw.prepare('SELECT id FROM b_booklets WHERE examId=?').bind(eid).first();
+ if(bk&&!(await raw.prepare('SELECT code FROM b_booklet_codes WHERE bookletId=? AND participantId=?').bind(bk.id,pid).first()))fail('לאתגר הזה נכנסים עם הקוד שבגב החוברת.',403);
  if(e.track!==D.effectiveTrack(p))fail('האתגר הזה אינו זמין במסלול שלך.',403);
  const material=e.week+':'+e.kind+':'+e.materialKey;
  let a=await first(db,'SELECT * FROM attempts WHERE participantId=? AND materialKey=?',pid,material);
@@ -60,6 +62,20 @@ export async function startYouthAttempt(raw,pid,eid){
  catch(error){const winner=await first(db,'SELECT * FROM attempts WHERE participantId=? AND materialKey=?',pid,material);if(!winner||winner.examId!==eid)throw error;a=winner}
  }
  return youthAttemptView(raw,pid,a.id);
+}
+export async function redeemBookletCode(raw,pid,input){
+ const code=String(input||'').toUpperCase().replace(/[^0-9A-Z]/g,''),c=code&&await raw.prepare('SELECT * FROM b_booklet_codes WHERE code=?').bind(code).first();
+ if(!c||c.voided)fail('הקוד לא נמצא. כדאי לבדוק שוב את הקוד שבגב החוברת.',404);
+ const b=await raw.prepare('SELECT * FROM b_booklets WHERE id=?').bind(c.bookletId).first();if(!b?.examId)fail('האתגר של החוברת הזו עוד לא נפתח.');
+ if(c.participantId&&c.participantId!==pid)fail('הקוד הזה כבר נוצל. לכל חוברת יש קוד משלה.',409);
+ let locked=false;
+ if(!c.participantId){
+  if(await raw.prepare('SELECT code FROM b_booklet_codes WHERE bookletId=? AND participantId=?').bind(b.id,pid).first())fail('כבר נבחנת על החוברת הזו עם קוד אחר.',409);
+  await raw.prepare('UPDATE b_booklet_codes SET participantId=?,usedAt=? WHERE code=? AND participantId IS NULL').bind(pid,D.now(),code).run();
+  if((await raw.prepare('SELECT participantId FROM b_booklet_codes WHERE code=?').bind(code).first())?.participantId!==pid)fail('הקוד הזה כבר נוצל.',409);locked=true;
+ }
+ try{return {examId:b.examId,attempt:await startYouthAttempt(raw,pid,b.examId)}}
+ catch(e){if(locked)await raw.prepare('UPDATE b_booklet_codes SET participantId=NULL,usedAt=NULL WHERE code=?').bind(code).run();throw e}
 }
 export async function youthAttemptView(raw,pid,aid){
  const db=youthDb(raw),a=await ownedAttempt(db,pid,aid),draft=await first(raw,'SELECT * FROM b_web_attempts WHERE attemptId=?',aid),settings=draft?JSON.parse(draft.settings):DEFAULT_WEB_SETTINGS;

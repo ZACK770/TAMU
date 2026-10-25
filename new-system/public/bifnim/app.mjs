@@ -16,7 +16,9 @@ async function api(path,body){
  if(!res.ok){const e=new Error(j.error||'הפעולה לא הושלמה');e.status=res.status;throw e}
  return j;
 }
-async function refresh(){state.catalog=await api('catalog');try{state.account=await api('state')}catch(e){if(e.status===401)state.account=null;else throw e}renderNav();}
+const pendingCode=new URLSearchParams(location.search).get('code');if(pendingCode){sessionStorage.setItem('bcode',pendingCode);history.replaceState(null,'',location.pathname+location.hash)}
+async function redeemPending(){const c=sessionStorage.getItem('bcode');if(!c||!state.account)return;sessionStorage.removeItem('bcode');try{const r=await api('redeem',{code:c});state.account=await api('state');state.attempt=r.data.attempt;state.questionIndex=0;location.hash='quiz/'+r.data.examId;await render()}catch(e){notice(e.message)}}
+async function refresh(){state.catalog=await api('catalog');try{state.account=await api('state')}catch(e){if(e.status===401)state.account=null;else throw e}renderNav();if(state.account&&sessionStorage.getItem('bcode'))setTimeout(redeemPending,0);}
 function renderNav(){
  const nav=$('#account-nav');
  nav.innerHTML=state.account?'<a class="btn dark" href="#account">'+esc(state.account.participant.name)+' <span>↖</span></a>':button(copy.start,'login','dark');
@@ -35,7 +37,7 @@ function home(){
 }
 function library(challenges=false){
  const list=state.account?.exams||state.catalog?.exams||[];
- return '<div class="page-title"><div class="eyebrow">'+(challenges?'עוד צעד משלך':'דברים ששווה לפתוח')+'</div><h1>'+(challenges?copy.challenges:copy.library)+'</h1><p>'+(challenges?'קראת? חשבת? בוא נראה מה לקחת מזה. ההתקדמות נשמרת בחשבון שלך.':'מי מחליט עליי? למה אני צריך שיאהבו אותי? ואיך הופכים כעס לכוח? כאן מתחילים לפתוח.')+'</p></div><section class="section">'+(list.length?'<div class="grid">'+list.map(courseCard).join('')+'</div>':empty(copy.empty,'האתגרים והתכנים הזמינים יופיעו כאן.'))+'</section>';
+ return '<div class="page-title"><div class="eyebrow">'+(challenges?'עוד צעד משלך':'דברים ששווה לפתוח')+'</div><h1>'+(challenges?copy.challenges:copy.library)+'</h1><p>'+(challenges?'קראת? חשבת? בוא נראה מה לקחת מזה. ההתקדמות נשמרת בחשבון שלך.':'מי מחליט עליי? למה אני צריך שיאהבו אותי? ואיך הופכים כעס לכוח? כאן מתחילים לפתוח.')+'</p></div>'+(challenges?'<section class="section"><div class="request-summary"><strong>קיבלת חוברת?</strong><p>סורקים את ה-QR שבגב החוברת, או מקלידים כאן את הקוד שמתחתיו.</p><input id="bcode" class="code-input" placeholder="קוד מהחוברת" autocomplete="off" dir="ltr"> '+button('לאתגר ↖','redeem-code')+'</div></section>':'')+'<section class="section">'+(list.length?'<div class="grid">'+list.map(courseCard).join('')+'</div>':empty(copy.empty,'האתגרים והתכנים הזמינים יופיעו כאן.'))+'</section>';
 }
 function lesson(eid){
  const e=(state.account?.exams||state.catalog?.exams||[]).find(e=>e.id===eid);
@@ -87,6 +89,7 @@ async function action(el){
  if(a==='challenges'){location.hash='challenges';return}
  if(a==='privacy'){showModal('<h2 id="modal-title">החשבון שלך, במקום בטוח.</h2><p>אנחנו שומרים את שם המשתמש, השם שבחרת, תשובות האתגרים, הנקודות וההזמנות כדי להפעיל את התוכנית.</p><p>כשמזמינים הטבה, הפרטים הנדרשים למימוש מועברים לבית העסק שמטפל בה. הפניות האישיות זמינות לך ולצוות המורשה.</p><p>לבקשת עיון, תיקון או מחיקת חשבון אפשר לפנות לצוות מתוך החשבון. נוסח מדיניות מלא ופרטי הגוף המפעיל יושלמו לפני פתיחת האתר לקהל.</p>'+button('פנייה לצוות','contact'));return}
  if(a==='logout'){await api('logout',{});state.account=null;state.attempt=null;location.hash='home';render();toast('יצאת מהחשבון. נתראה בפנים.');return}
+ if(a==='redeem-code'){const v=$('#bcode')?.value.trim();if(!v)return;sessionStorage.setItem('bcode',v);if(!requireMember())return;await redeemPending();return}
  if(a==='start'){await start(el.dataset.id);return}
  if(a==='confirm-start'){const r=await api('start',{examId:el.dataset.id});state.attempt=r.data;state.questionIndex=0;modal.close();location.hash='quiz/'+el.dataset.id;render();return}
  if(a==='answer'){
@@ -144,4 +147,4 @@ async function render(){
 }
 window.addEventListener('hashchange',()=>{$('.header nav').classList.remove('mobile-open');notice('');render();window.scrollTo(0,0)});
 modal.addEventListener('click',e=>{if(e.target===modal)modal.close()});
-try{await refresh();await render()}catch(e){notice(e.message);main.innerHTML=home()+'<section class="section">'+empty('פותחים את האתר בקרוב.','החיבור לנתונים עדיין לא זמין. התצוגה הזאת מציגה את שפת האתר בלבד.')+'</section>'}
+try{await refresh();await render();if(pendingCode&&!state.account){notice('כדי להתחיל את האתגר מהחוברת, נכנסים או נרשמים. הקוד שמור.');auth()}}catch(e){notice(e.message);main.innerHTML=home()+'<section class="section">'+empty('פותחים את האתר בקרוב.','החיבור לנתונים עדיין לא זמין. התצוגה הזאת מציגה את שפת האתר בלבד.')+'</section>'}

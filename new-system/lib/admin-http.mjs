@@ -1,5 +1,6 @@
 import * as D from './domain.mjs';
 import * as S from './staff.mjs';
+import * as B from './booklets.mjs';
 const q=(db,s,...a)=>db.prepare(s).bind(...a);
 const rows=async(db,s,...a)=>(await q(db,s,...a).all()).results;
 const fail=(m,s=400)=>{throw new D.DomainError(m,s)};
@@ -52,7 +53,14 @@ export async function handleAdmin(db,staff,action,b={}){
    if(action==='redeem')return {order:await D.orderTransition(db,o.id,'complete',actor,staff.role==='merchant'?staff.scope:null)};
    const {snapshot,...rest}=o;return {order:{...rest,title:JSON.parse(snapshot).title}};
   }
-  case 'messages':return {messages:await rows(db,'SELECT m.*,p.name,p.nationalId FROM messages m JOIN participants p ON p.id=m.participantId ORDER BY m.createdAt DESC LIMIT 300')};
+  case 'booklets':return B.listBooklets(db);
+ case 'saveBooklet':return B.saveBooklet(db,b);
+ case 'bookletFileMove':return B.moveFile(db,b.id,Number(b.dir));
+ case 'bookletFileDelete':return B.deleteFile(db,b.id);
+ case 'generateCodes':return B.generateCodes(db,b.id,b.count);
+ case 'bookletCodes':return B.bookletCodes(db,b.id);
+ case 'voidCode':return B.voidCode(db,b.code);
+ case 'messages':return {messages:await rows(db,'SELECT m.*,p.name,p.nationalId FROM messages m JOIN participants p ON p.id=m.participantId ORDER BY m.createdAt DESC LIMIT 300')};
   case 'institutions':return {institutions:await rows(db,'SELECT i.*,(SELECT COUNT(*) FROM participants p WHERE p.institution=i.name) AS n FROM institutions i ORDER BY i.name')};
   case 'institutionQueue':return {queue:(await rows(db,'SELECT * FROM participants WHERE spokenInstitution IS NOT NULL AND institution IS NULL ORDER BY createdAt DESC LIMIT 300')).map(p=>({...pub(p),spokenInstitution:p.spokenInstitution,regAudioKey:p.regAudioKey}))};
   case 'saveInstitution':{const name=String(b.name||'').trim().slice(0,120);if(!name)fail('חסר שם מוסד');const al=JSON.stringify([...new Set((b.aliases||[]).map(s=>String(s).trim().slice(0,120)).filter(Boolean))].slice(0,50));

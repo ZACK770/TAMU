@@ -1,0 +1,33 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {sqliteAdapter} from '../scripts/sqlite-adapter.mjs';
+import * as Y from '../lib/youth.mjs';
+import * as D from '../lib/domain.mjs';
+import {handleYouthHttp} from '../lib/youth-http.mjs';
+function fixture(){const {db,sql}=sqliteAdapter();sql.exec(readFileSync(new URL('../db/portable-schema.sql',import.meta.url),'utf8'));return {db,sql}}
+import * as B from '../lib/booklets.mjs';
+import JSZip from 'jszip';
+import {PDFDocument} from 'pdf-lib';
+test('booklet one-time codes and print export',async()=>{
+ const {db}=fixture();
+ const reg=async u=>{await Y.registerYouth(db,{name:u,username:u,password:'password123'});return (await Y.loginYouth(db,u,'password123')).participant.id};
+ const a=await reg('booka'),b=await reg('bookb');
+ await Y.saveYouthExam(db,{title:'Booklet exam',materialKey:'bk-m1',week:'bk-w1',track:'easy',kind:'sicha',opensAt:new Date(Date.now()-10000).toISOString(),closesAt:new Date(Date.now()+86400000).toISOString(),questionCount:1,questions:[{id:'q1',text:'Q1',options:['A','B'],correct:0,points:10}],published:true,webSettings:{shuffle:false},body:'L',intro:'I'},'admin');
+ const exam=(await B.listBooklets(db)).exams[0];
+ const {id}=await B.saveBooklet(db,{title:'חוברת 1',examId:exam.id});
+ await assert.rejects(Y.startYouthAttempt(db,a,exam.id),/קוד/);
+ await B.generateCodes(db,id,3);
+ const codes=(await B.bookletCodes(db,id)).codes;assert.equal(codes.length,3);
+ const r=await Y.redeemBookletCode(db,a,B.fmtCode(codes[0].code).toLowerCase());assert.equal(r.examId,exam.id);
+ await Y.redeemBookletCode(db,a,codes[0].code);
+ await assert.rejects(Y.redeemBookletCode(db,b,codes[0].code),/נוצל/);
+ await assert.rejects(Y.redeemBookletCode(db,a,codes[1].code),/כבר נבחנת/);
+ await assert.rejects(Y.redeemBookletCode(db,b,'ZZZZZZZZ'),/לא נמצא/);
+ await B.voidCode(db,codes[2].code);await assert.rejects(Y.redeemBookletCode(db,b,codes[2].code),/לא נמצא/);
+ const doc=await PDFDocument.create();doc.addPage();await B.addFile(db,id,'part','a.pdf',Buffer.from(await doc.save()));
+ await assert.rejects(B.addFile(db,id,'part','x.pdf',Buffer.from('nope')),/PDF/);
+ const backs=await B.exportBooklet(db,id,'backs','https://x.test');assert.equal((await PDFDocument.load(backs.data)).getPageCount(),2);
+ const zip=await JSZip.loadAsync((await B.exportBooklet(db,id,'zip','https://x.test')).data);assert.ok(zip.file('booklet.pdf')&&zip.file('backs.pdf')&&zip.file('parts/01-a.pdf'));
+ const copies=await JSZip.loadAsync((await B.exportBooklet(db,id,'copies','https://x.test',1,1)).data);assert.equal((await PDFDocument.load(await copies.file('0001.pdf').async('uint8array'))).getPageCount(),2);
+});
