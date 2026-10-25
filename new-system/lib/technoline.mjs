@@ -9,7 +9,7 @@ const prompt=(s,message,min=1,max=1)=>{
 };
 const finish=message=>({type:'simpleMessage',files:[text(message)],addParams:{tv_done:'1'}});
 function menu(s,prefix=''){
- s.stage='menu';return prompt(s,prefix+' למבחנים הקישו 1. ליתרת נקודות הקישו 2. להזמנת הטבה הקישו 3. להזמנות וביטולים הקישו 4. לשמיעת תשובות הצוות הקישו 5. ליציאה הקישו 9.');
+ s.stage='menu';return prompt(s,prefix+' למבחנים הקישו 1. ליתרת נקודות הקישו 2. להזמנת הטבה הקישו 3. להזמנות וביטולים הקישו 4. לשמיעת תשובות הצוות הקישו 5. להשארת הודעה לצוות הקישו 6. ליציאה הקישו 9.');
 }
 function question(s,a){
  if(a.completed)return menu(s,'המבחן הושלם. נזקפו לחשבונך '+a.score+' נקודות.');
@@ -18,14 +18,36 @@ function question(s,a){
  const spoken='שאלה '+(a.answered+1)+' מתוך '+a.total+'. '+(a.question.text||'')+'. '+a.question.options.map((o,i)=>'לתשובה '+o+' הקישו '+(i+1)).join('. ');
  return prompt(s,spoken);
 }
-async function advance(db,s,input){
+const loginPrompt=(s,prefix='')=>{s.stage='nationalId';return prompt(s,prefix+'הקישו תעודת זהות בת 9 ספרות. להרשמה חדשה הקישו 0 וסולמית.',1,9)};
+async function advance(db,s,input,params={}){
+ if(s.stage==='nationalId'&&input==='0'){s.stage='regId';return prompt(s,'הרשמה חדשה. הקישו את תעודת הזהות שלכם, 9 ספרות כולל אפסים מובילים.',9,9);}
+ if(s.stage==='regId'){
+  if(!/^\d{9}$/.test(input))return prompt(s,'תעודת הזהות אינה תקינה. הקישו 9 ספרות.',9,9);
+  if(await first(db,'SELECT id FROM participants WHERE nationalId=?',input))return loginPrompt(s,'תעודת הזהות כבר רשומה במערכת. ');
+  s.regId=input;s.stage='regPass';return prompt(s,'בחרו סיסמה של 6 עד 12 ספרות ובסיום סולמית.',6,12);
+ }
+ if(s.stage==='regPass'){
+  if(!/^\d{6,12}$/.test(input))return prompt(s,'הסיסמה צריכה להכיל 6 עד 12 ספרות. הקישו שוב ובסיום סולמית.',6,12);
+  s.regHash=await D.hashPassword(input);s.stage='regPass2';return prompt(s,'הקישו שוב את הסיסמה לאימות ובסיום סולמית.',6,12);
+ }
+ if(s.stage==='regPass2'){
+  const salt=s.regHash.split(':')[0];
+  if(s.regHash!==salt+':'+await D.derive(input,salt)){delete s.regHash;s.stage='regPass';return prompt(s,'הסיסמאות אינן תואמות. בחרו סיסמה של 6 עד 12 ספרות ובסיום סולמית.',6,12);}
+  await D.register(db,{nationalId:s.regId,name:'נרשם בטלפון',password:input});
+  const auth=await D.login(db,s.regId,input);delete s.regHash;delete s.regId;s.pid=auth.participant.id;s.expires=Date.now()+30*60000;
+  s.stage='regPhone';return prompt(s,'נרשמתם בהצלחה. כדי שתוכלו לשחזר סיסמה, הקישו מספר טלפון ובסיום סולמית. לדילוג הקישו סולמית.',1,10);
+ }
+ if(s.stage==='regPhone'){
+  if(/^0\d{8,9}$/.test(input)){await statement(db,'UPDATE participants SET recoveryPhone=? WHERE id=?',input,s.pid).run();return menu(s,'טלפון השחזור נשמר.');}
+  return menu(s,input==='ERROR'?'':'המספר אינו תקין ולא נשמר. ניתן לעדכן דרך הצוות.');
+ }
  if(s.stage==='nationalId'){
-  if(!/^\d{9}$/.test(input))return prompt(s,'תעודת הזהות אינה תקינה. הקישו 9 ספרות כולל אפסים מובילים.',9,9);
+  if(!/^\d{9}$/.test(input))return loginPrompt(s,'תעודת הזהות אינה תקינה. ');
   s.nationalId=input;s.stage='password';return prompt(s,'הקישו את הסיסמה ובסיום סולמית.',1,12);
  }
  if(s.stage==='password'){
   try{const auth=await D.login(db,s.nationalId,input);s.pid=auth.participant.id;delete s.nationalId;s.expires=Date.now()+30*60000;return menu(s,'שלום '+auth.participant.name+'.');}
-  catch(e){delete s.nationalId;s.stage='nationalId';return prompt(s,e.message+'. הקישו תעודת זהות מחדש.',9,9);}
+  catch(e){delete s.nationalId;return loginPrompt(s,e.message+'. ');}
  }
  if(!s.pid)return finish('יש להתקשר מחדש ולהזדהות.');
  const state=await D.participantState(db,s.pid);
@@ -53,7 +75,17 @@ async function advance(db,s,input){
    const replies=state.messages.filter(m=>m.reply).slice(0,10);
    return menu(s,replies.length?replies.map(m=>'תשובה בנושא '+m.subject+'. '+m.reply).join('. '):'אין תשובות חדשות.');
   }
+  if(input==='6'){
+   s.stage='record';s.field='tv_'+token();
+   return {type:'record',name:s.field,max:120,min:2,confirm:'confirmOnly',hangupSave:'yes',files:[text('השאירו הודעה לצוות לאחר הצליל. בסיום הקישו סולמית.')]};
+  }
   return menu(s,'הבחירה אינה תקינה.');
+ }
+ if(s.stage==='record'){
+  const fileId=params['FILEID_'+s.field];
+  if(!fileId)return menu(s,'ההקלטה לא נשמרה.');
+  await D.addMessage(db,s.pid,{subject:'הודעה קולית מהטלפון',audioKey:'technoline:'+fileId});
+  return menu(s,'ההודעה נשמרה. תשובת הצוות תושמע בתפריט התשובות.');
  }
  if(s.stage==='examSelect'){
   const eid=s.items[Number(input)-1];if(!eid)return menu(s,'הבחירה אינה תקינה.');
@@ -105,9 +137,9 @@ export async function handleTechnolineCall(db,params){
  if(state&&state.expires<Date.now())state=null;
  if(!state){
   state={callHash,stage:'nationalId',expires:Date.now()+30*60000};
-  prompt(state,'ברוכים הבאים לטעמו וראו. הקישו תעודת זהות בת 9 ספרות כולל אפסים מובילים.',9,9);
+  prompt(state,'ברוכים הבאים לטעמו וראו. הקישו תעודת זהות בת 9 ספרות כולל אפסים מובילים. להרשמה חדשה הקישו 0 וסולמית.',1,9);
  }else if(state.field&&Object.hasOwn(params,state.field)){
-  try{state.response=await advance(db,state,String(params[state.field]));}
+  try{state.response=await advance(db,state,String(params[state.field]),params);}
   catch(e){state.response=menu(state,e instanceof D.DomainError?e.message:'הפעולה לא הושלמה. יש לבדוק את החשבון לפני ניסיון נוסף.');}
  }
  const response=state.response||menu(state);
