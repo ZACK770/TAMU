@@ -20,7 +20,7 @@ async function safeOrigin(req){
 }
 async function throttle(raw,req,key,max=15){
  const db=Y.youthDb(raw),ip=req.headers.get('cf-connecting-ip')||req.headers.get('x-local-client')||'unknown',name=key+':'+await D.digest(ip);
- const result=await q(db,'INSERT INTO auth_limits(key,failures,until) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET failures=CASE WHEN until<? THEN 1 ELSE failures+1 END,until=CASE WHEN until<? THEN excluded.until ELSE until END RETURNING failures',name,new Date(Date.now()+900000).toISOString(),D.now(),D.now()).first();
+ const result=await q(db,'INSERT INTO auth_limits(key,failures,until) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET failures=CASE WHEN auth_limits.until<? THEN 1 ELSE auth_limits.failures+1 END,until=CASE WHEN auth_limits.until<? THEN excluded.until ELSE auth_limits.until END RETURNING failures',name,new Date(Date.now()+900000).toISOString(),D.now(),D.now()).first();
  if(result.failures>max)throw new D.DomainError('רגע, היו הרבה ניסיונות. אפשר לנסות שוב בעוד רבע שעה.',429);
 }
 export async function handleYouthHttp(raw,req,path,authorizeAdmin){
