@@ -17,9 +17,10 @@ export async function listBooklets(db){
   exams:await rows(db,'SELECT id,title FROM b_exams ORDER BY createdAt DESC LIMIT 300')};
 }
 export async function saveBooklet(db,b){
- const title=String(b.title||'').trim().slice(0,120);if(!title)fail('חסר שם לחוברת');const examId=b.examId||null;
- if(b.id){await q(db,'UPDATE b_booklets SET title=?,examId=? WHERE id=?',title,examId,b.id).run();return {id:b.id}}
- const id=crypto.randomUUID();await q(db,'INSERT INTO b_booklets(id,title,examId,createdAt) VALUES(?,?,?,?)',id,title,examId,D.now()).run();return {id};
+ const title=String(b.title||'').trim().slice(0,120);if(!title)fail('חסר שם לחוברת');const examId=b.examId||null,nextText=String(b.nextText||'').trim().slice(0,300)||null,nextUrl=String(b.nextUrl||'').trim().slice(0,300)||null;
+ if(nextUrl&&!/^(https:\/\/|\/|#)/.test(nextUrl))fail('הקישור להמשך צריך להתחיל ב-https://');
+ if(b.id){await q(db,'UPDATE b_booklets SET title=?,examId=?,nextText=?,nextUrl=? WHERE id=?',title,examId,nextText,nextUrl,b.id).run();return {id:b.id}}
+ const id=crypto.randomUUID();await q(db,'INSERT INTO b_booklets(id,title,examId,nextText,nextUrl,createdAt) VALUES(?,?,?,?,?,?)',id,title,examId,nextText,nextUrl,D.now()).run();return {id};
 }
 export async function addFile(db,bookletId,kind,name,buf){
  if(!['part','back'].includes(kind))fail('סוג קובץ לא תקין');if(!await first(db,'SELECT id FROM b_booklets WHERE id=?',bookletId))fail('החוברת לא נמצאה',404);

@@ -1,6 +1,7 @@
 import * as D from './domain.mjs';
 import * as S from './staff.mjs';
 import * as B from './booklets.mjs';
+import * as St from './stands.mjs';
 import {youthDb} from './youth.mjs';
 const q=(db,s,...a)=>db.prepare(s).bind(...a);
 const rows=async(db,s,...a)=>(await q(db,s,...a).all()).results;
@@ -9,7 +10,8 @@ const can={
  admin:()=>true,
  editor:a=>['overview','exams','saveExam','templates','saveTemplates','messages','reply'].includes(a),
  support:a=>['overview','participants','participant','pointsReport','messages','reply','institutions','institutionQueue','assignInstitution'].includes(a),
- merchant:a=>['overview','lookupOrder','redeem','merchantOrders'].includes(a)
+ merchant:a=>['overview','lookupOrder','redeem','merchantOrders'].includes(a),
+ operator:a=>['overview','operatorHome','standReport','markTefillin'].includes(a)
 };
 const pub=p=>p&&({id:p.id,nationalId:p.nationalId,name:p.name,institution:p.institution,recoveryPhone:p.recoveryPhone,track:p.track,nextTrack:p.nextTrack,trackEffective:p.trackEffective,balance:p.balance,debt:p.debt,blocked:p.blocked,createdAt:p.createdAt});
 const inScope=(o,scope)=>{const b=JSON.parse(o.snapshot);return b.merchant===scope?.merchant&&(!scope.branch||b.branch===scope.branch)};
@@ -18,7 +20,7 @@ export async function handleAdmin(db,staff,action,b={}){
  const actor=staff.id,t=D.now();
  switch(action){
   case 'ivrStep':{const {handleTechnolineCall}=await import('./technoline.mjs');const p={PBXcallId:'sim-'+actor+'-'+String(b.callId||'').slice(0,60),PBXphone:'0000000000'};if(b.field){p[b.field]=String(b.value??'');if(b.fileId)p['FILEID_'+b.field]=String(b.fileId)}if(b.hangup)p.PBXcallStatus='HANGUP';return {response:await handleTechnolineCall(db,p)}}
-  case 'overview':return {staff,counts:staff.role==='merchant'?{}:(await q(db,"SELECT (SELECT COUNT(*) FROM participants) AS participants,(SELECT COUNT(*) FROM orders WHERE status='pending') AS pendingOrders,(SELECT COUNT(*) FROM messages WHERE status='open') AS openMessages,(SELECT COUNT(*) FROM exams WHERE published=1 AND opensAt<=? AND closesAt>?) AS activeExams",t,t).first())};
+  case 'overview':return {staff,counts:['merchant','operator'].includes(staff.role)?{}:(await q(db,"SELECT (SELECT COUNT(*) FROM participants) AS participants,(SELECT COUNT(*) FROM orders WHERE status='pending') AS pendingOrders,(SELECT COUNT(*) FROM messages WHERE status='open') AS openMessages,(SELECT COUNT(*) FROM exams WHERE published=1 AND opensAt<=? AND closesAt>?) AS activeExams",t,t).first())};
   case 'participants':{const s='%'+String(b.search||'').trim()+'%',off=Math.max(0,Math.trunc(Number(b.page)||0))*100;const total=Number((await q(db,'SELECT COUNT(*) AS n FROM participants WHERE nationalId LIKE ? OR name LIKE ?',s,s).first()).n);return {total,participants:(await rows(db,'SELECT * FROM participants WHERE nationalId LIKE ? OR name LIKE ? ORDER BY name,nationalId LIMIT 100 OFFSET ?',s,s,off)).map(pub)}}
   case 'pointsReport':{const P=await import('./points-source.mjs');return {categories:P.CATEGORIES,...await P.pointsReport(db,b)}}
   case 'participant':{const st=await D.participantState(db,b.id);return {...st,participant:pub(await D.getParticipant(db,b.id)),attempts:await rows(db,'SELECT a.id,a.score,a.completed,a.createdAt,e.title FROM attempts a JOIN exams e ON e.id=a.examId WHERE a.participantId=? ORDER BY a.createdAt DESC LIMIT 200',b.id).catch(()=>[])}}
@@ -63,6 +65,15 @@ export async function handleAdmin(db,staff,action,b={}){
   await db.batch([D.auditStatement(db,actor,'message.broadcast',bid)]);return {ok:true,count:ids.length}}
  case 'broadcasts':return {broadcasts:await rows(db,'SELECT broadcastId,MIN(subject) AS subject,MIN(reply) AS reply,MIN(replyAudioKey) AS audio,MIN(createdAt) AS createdAt,MIN(expiresAt) AS expiresAt,COUNT(*) AS total,COUNT(heardAt) AS heard FROM messages WHERE broadcastId IS NOT NULL GROUP BY broadcastId ORDER BY MIN(createdAt) DESC LIMIT 100')};
  case 'broadcastRecipients':return {recipients:await rows(db,'SELECT p.name,p.nationalId,m.heardAt FROM messages m JOIN participants p ON p.id=m.participantId WHERE m.broadcastId=? ORDER BY m.heardAt DESC',b.id)};
+ case 'stands':return St.listStands(db);
+ case 'saveStand':return St.saveStand(db,b,actor);
+ case 'assignCodes':return St.assignCodes(db,b,actor);
+ case 'funnel':return St.funnel(db,b);
+ case 'goals':return St.goals(db,b);
+ case 'saveGoals':return St.saveGoals(db,b,actor);
+ case 'operatorHome':return St.operatorHome(db,staff);
+ case 'standReport':return St.standReport(db,staff,b);
+ case 'markTefillin':return St.markTefillin(db,staff,b);
  case 'booklets':return B.listBooklets(db);
  case 'saveBooklet':return B.saveBooklet(db,b);
  case 'bookletFileMove':return B.moveFile(db,b.id,Number(b.dir));

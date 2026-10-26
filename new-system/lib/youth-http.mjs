@@ -1,6 +1,7 @@
 import * as Phone from './phone-auth.mjs';
 import * as D from './domain.mjs';
 import * as Y from './youth.mjs';
+import * as St from './stands.mjs';
 const cookieName='bifnim_session';
 const json=(data,status=200,headers={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
 const q=(db,s,...a)=>db.prepare(s).bind(...a);
@@ -74,6 +75,7 @@ export async function handleYouthHttp(raw,req,path,authorizeAdmin){
   case 'cancel':result=await Y.youthCancel(raw,m.id,b.orderId);break;
   case 'message':result=await Y.youthMessage(raw,m.id,b);break;
   case 'redeem':await throttle(raw,req,'redeem',30);result=await Y.redeemBookletCode(raw,m.id,b.code);break;
+  case 'next':result=await St.nextClick(raw,m.id,b.bookletId);break;
   case 'card':result=await D.linkCard(Y.youthDb(raw),m.id,b.network,b.number,m.id);break;
   default:throw new D.DomainError('הפעולה לא נמצאה',404);
  }

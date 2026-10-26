@@ -1,7 +1,7 @@
 const COLLECTIONS=Object.freeze({
  participants:['participants'],participantIds:['ids'],participantsByIds:['participants'],templates:['templates'],
  exams:['exams'],benefits:['benefits'],orders:['orders'],merchantOrders:['orders'],broadcasts:['broadcasts'],
- broadcastRecipients:['recipients'],booklets:['booklets','exams','files'],bookletCodes:['codes'],
+ broadcastRecipients:['recipients'],booklets:['booklets','exams','files'],bookletCodes:['codes'],stands:['stands','distributions','operators','booklets'],funnel:['rows','stands'],operatorHome:['booklets'],
  messages:['messages'],institutions:['institutions'],institutionQueue:['queue'],staff:['staff'],audit:['audit']
 });
 export function validateAdminData(action,data){

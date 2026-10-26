@@ -1,5 +1,5 @@
 import * as D from './domain.mjs';
-export const ROLES=Object.freeze(['admin','editor','support','merchant']);
+export const ROLES=Object.freeze(['admin','editor','support','merchant','operator']);
 const q=(db,s,...a)=>db.prepare(s).bind(...a);
 const fail=(m,s=400)=>{throw new D.DomainError(m,s)};
 const cookieName='tv_staff';
@@ -7,6 +7,7 @@ function username(v){const s=String(v||'').trim().toLowerCase();if(!/^[a-z0-9_.-
 export async function createStaff(db,{username:u,name,password,role,scope=null},actor){
  u=username(u);if(!ROLES.includes(role))fail('תפקיד לא תקין');if(String(password||'').length<10)fail('סיסמת צוות חייבת לפחות 10 תווים');
  if(role==='merchant'&&!scope?.merchant)fail('למוכר חובה להגדיר חנות');
+ if(role==='operator'&&!scope?.stand)fail('למפעיל דוכן חובה לבחור דוכן');
  const id=crypto.randomUUID();
  await db.batch([q(db,'INSERT INTO staff_accounts(id,username,name,passwordHash,role,scope,active,createdAt) VALUES(?,?,?,?,?,?,1,?)',id,u,String(name||u).slice(0,80),await D.hashPassword(password),role,scope?JSON.stringify(scope):null,D.now()),D.auditStatement(db,actor,'staff.create',id,{username:u,role})]);
  return {id,username:u,role};

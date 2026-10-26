@@ -84,7 +84,8 @@ export async function youthAttemptView(raw,pid,aid){
  const choices=settings.answerMode==='locked'?Object.fromEntries(answered.map(r=>[r.questionId,r.choice])):JSON.parse(draft?.payload||'{}');
  const snapshot=JSON.parse(a.snapshot);
  const questions=snapshot.map(q=>({id:q.id,text:q.text,options:q.options,audioKey:q.audioKey||null,points:q.points,...(a.completed&&settings.showCorrect?{correct:q.correct,explanation:q.explanation||''}:{})}));
- return {id:a.id,examId:a.examId,completed:!!a.completed,score:a.completed?a.score:null,questions,choices,revision:draft?.revision||0,settings,answered:Object.keys(choices).length,total:questions.length};
+ const bk=await first(raw,"SELECT id,nextText,nextUrl FROM b_booklets WHERE examId=? AND nextText IS NOT NULL AND nextText<>''",a.examId);
+ return {next:bk?{bookletId:bk.id,text:bk.nextText,url:bk.nextUrl||'#learn'}:null,id:a.id,examId:a.examId,completed:!!a.completed,score:a.completed?a.score:null,questions,choices,revision:draft?.revision||0,settings,answered:Object.keys(choices).length,total:questions.length};
 }
 export async function saveYouthChoice(raw,pid,aid,qid,choice,revision){
  const db=youthDb(raw);await activeParticipant(db,pid);const a=await ownedAttempt(db,pid,aid);
