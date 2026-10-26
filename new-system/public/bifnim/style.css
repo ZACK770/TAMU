@@ -14,3 +14,25 @@
 input.otp-input{font-size:30px;letter-spacing:.25em;text-align:center;font-variant-numeric:tabular-nums;padding:15px!important}
 #phone-entry small{font-size:11px;color:#777;font-weight:400}#phone-entry select{width:100%;padding:12px;border:1px solid #cfd2c7;border-radius:8px;background:#fff}
 @media(max-width:650px){.direct-entry{margin:25px 16px;padding:28px 20px}.focused-entry .header{height:74px}.entry-links{flex-wrap:wrap}input.otp-input{font-size:28px}}
+
+.welcome{max-width:980px;margin:40px auto;padding:0 20px}
+.welcome-head{background:#18191a;color:#fff;border-radius:22px;padding:42px 36px 36px;position:relative;overflow:hidden}
+.welcome-head h1{font-size:clamp(30px,5vw,52px);line-height:1.05;margin:6px 0 14px;color:#fff}
+.welcome-head p{font-size:18px;opacity:.85;max-width:620px;margin:0}
+.welcome-head .entry-eyebrow{color:#b7f44d}
+.welcome-code{position:absolute;top:18px;left:22px;font:600 12px monospace;opacity:.55;direction:ltr}
+.welcome-saved{display:inline-block;margin-top:16px;background:#b7f44d;color:#18191a;border-radius:99px;padding:5px 14px;font-size:13px;font-weight:700}
+.welcome-options{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:18px}
+.welcome-option{display:flex;flex-direction:column;gap:12px;background:#fff;border:1px solid #e2e4da;border-radius:16px;padding:22px;color:inherit;text-decoration:none;transition:transform .15s,box-shadow .15s}
+.welcome-option:hover{transform:translateY(-2px);box-shadow:0 10px 30px #0000000f}
+.welcome-option h3{margin:0 0 4px;font-size:20px}
+.welcome-option p{margin:0;color:#5d6058}
+.welcome-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;background:#b9ef69;color:#1c2119}
+.welcome-option.tone-b .welcome-icon{background:#ded5f4;color:#6743c6}
+.welcome-option.tone-c .welcome-icon{background:#ffe0bd;color:#b35b23}
+.welcome-option.main{grid-column:1/-1;border:2px solid #18191a;order:-1}
+.welcome-option .btn{margin-top:auto;width:auto;align-self:flex-start}
+@media(max-width:700px){.welcome{margin:18px auto;padding:0 14px}.welcome-options{grid-template-columns:1fr}.welcome-head{padding:36px 22px 26px}.welcome-option .btn{width:100%}}
+.welcome-head p{color:#fff;opacity:.78}
+.welcome-options>*{min-width:0}
+.welcome,.welcome-head,.welcome-option{box-sizing:border-box}

@@ -64,10 +64,10 @@ export async function startYouthAttempt(raw,pid,eid){
  }
  return youthAttemptView(raw,pid,a.id);
 }
-export async function redeemBookletCode(raw,pid,input){
+async function lockBookletCode(raw,pid,input,needExam){
  const code=String(input||'').toUpperCase().replace(/[^0-9A-Z]/g,''),c=code&&await raw.prepare('SELECT * FROM b_booklet_codes WHERE code=?').bind(code).first();
  if(!c||c.voided)fail('הקוד לא נמצא. כדאי לבדוק שוב את הקוד שבגב החוברת.',404);
- const b=await raw.prepare('SELECT * FROM b_booklets WHERE id=?').bind(c.bookletId).first();if(!b?.examId)fail('האתגר של החוברת הזו עוד לא נפתח.');
+ const b=await raw.prepare('SELECT * FROM b_booklets WHERE id=?').bind(c.bookletId).first();if(needExam&&!b?.examId)fail('האתגר של החוברת הזו עוד לא נפתח.');
  if(c.participantId&&c.participantId!==pid)fail('הקוד הזה כבר נוצל. לכל חוברת יש קוד משלה.',409);
  let locked=false;
  if(!c.participantId){
@@ -75,8 +75,25 @@ export async function redeemBookletCode(raw,pid,input){
   await raw.prepare('UPDATE b_booklet_codes SET participantId=?,usedAt=? WHERE code=? AND participantId IS NULL').bind(pid,D.now(),code).run();
   if((await raw.prepare('SELECT participantId FROM b_booklet_codes WHERE code=?').bind(code).first())?.participantId!==pid)fail('הקוד הזה כבר נוצל.',409);locked=true;
  }
+ return {b,code,locked};
+}
+export async function claimBookletCode(raw,pid,input){await activeParticipant(youthDb(raw),pid);const {b}=await lockBookletCode(raw,pid,input,false);return {bookletId:b.id}}
+export async function redeemBookletCode(raw,pid,input){
+ const {b,code,locked}=await lockBookletCode(raw,pid,input,true);
  try{return {examId:b.examId,attempt:await startYouthAttempt(raw,pid,b.examId)}}
  catch(e){if(locked)await raw.prepare('UPDATE b_booklet_codes SET participantId=NULL,usedAt=NULL WHERE code=?').bind(code).run();throw e}
+}
+export async function bookletWelcome(raw,input,pid){
+ const code=String(input||'').toUpperCase().replace(/[^0-9A-Z]/g,''),c=code&&await raw.prepare('SELECT * FROM b_booklet_codes WHERE code=?').bind(code).first();
+ if(!c||c.voided)fail('הקוד לא נמצא. כדאי לבדוק שוב את הקוד שבגב החוברת.',404);
+ const b=await raw.prepare('SELECT * FROM b_booklets WHERE id=?').bind(c.bookletId).first();
+ const hasPdf=!!await raw.prepare("SELECT id FROM b_booklet_files WHERE bookletId=? AND kind='part'").bind(b.id).first();
+ const e=b.examId?(await youthCatalog(raw)).exams.find(x=>x.id===b.examId):null;
+ const status=!c.participantId?'free':c.participantId===pid?'mine':'taken';
+ const a=pid&&e?(await D.rows(youthDb(raw),'SELECT completed,score FROM attempts WHERE participantId=? AND examId=?',pid,e.id))[0]:null;
+ return {code:code.slice(0,4)+'-'+code.slice(4),raw:code,title:b.title,welcome:b.welcomeText||'',mode:b.entryMode||'content',videoUrl:b.videoUrl||'',hasPdf,
+  exam:e?{id:e.id,title:e.title,questionCount:e.questionCount,hasLesson:!!(e.body||e.intro)}:null,
+  next:b.nextText?{bookletId:b.id,text:b.nextText,url:b.nextUrl||'#learn'}:null,status,attempt:a?{completed:!!a.completed,score:a.score}:null};
 }
 export async function youthAttemptView(raw,pid,aid){
  const db=youthDb(raw),a=await ownedAttempt(db,pid,aid),draft=await first(raw,'SELECT * FROM b_web_attempts WHERE attemptId=?',aid),settings=draft?JSON.parse(draft.settings):DEFAULT_WEB_SETTINGS;
@@ -121,7 +138,8 @@ export async function youthState(raw,pid){
  const db=youthDb(raw);await activeParticipant(db,pid);const base=await D.participantState(db,pid),catalog=await youthCatalog(raw);
  const attempts=await D.rows(db,'SELECT id,examId,completed,score,createdAt,completedAt FROM attempts WHERE participantId=? ORDER BY createdAt DESC',pid);
  const {nationalId,...participant}=base.participant;
- return {...base,participant:{...participant,username:nationalId},brand:BRAND,exams:catalog.exams.filter(e=>e.track===base.track),attempts};
+ const booklets=(await raw.prepare('SELECT c.code,b.id,b.title,b.examId FROM b_booklet_codes c JOIN b_booklets b ON b.id=c.bookletId WHERE c.participantId=? ORDER BY c.usedAt DESC').bind(pid).all()).results;
+ return {...base,participant:{...participant,username:nationalId},brand:BRAND,exams:catalog.exams.filter(e=>e.track===base.track),attempts,booklets};
 }
 export async function saveYouthBenefit(raw,b,actor){return D.saveBenefit(youthDb(raw),b,actor)}
 export async function youthOrder(raw,pid,bid,quantity,key){return D.placeOrder(youthDb(raw),pid,bid,quantity,'youth:'+key)}

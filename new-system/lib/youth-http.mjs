@@ -2,6 +2,7 @@ import * as Phone from './phone-auth.mjs';
 import * as D from './domain.mjs';
 import * as Y from './youth.mjs';
 import * as St from './stands.mjs';
+import * as B from './booklets.mjs';
 const cookieName='bifnim_session';
 const json=(data,status=200,headers={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
 const q=(db,s,...a)=>db.prepare(s).bind(...a);
@@ -59,6 +60,8 @@ export async function handleYouthHttp(raw,req,path,authorizeAdmin){
   if(b.action==='reply')return json(await q(Y.youthDb(raw),"UPDATE messages SET reply=?,status='answered' WHERE id=?",b.reply,b.id).run());
   throw new D.DomainError('פעולת ניהול לא מוכרת',404);
  }
+ if(req.method==='GET'&&route==='booklet'){await throttle(raw,req,'booklet-ip',150);let pid=null;try{pid=(await member(raw,req)).id}catch{}return json(await Y.bookletWelcome(raw,new URL(req.url).searchParams.get('code'),pid))}
+ if(req.method==='GET'&&route==='booklet-pdf'){await throttle(raw,req,'booklet-ip',150);return new Response(await B.readingPdf(raw,new URL(req.url).searchParams.get('code')),{headers:{'Content-Type':'application/pdf','Content-Disposition':'inline; filename="booklet.pdf"','Cache-Control':'private, max-age=300','X-Content-Type-Options':'nosniff'}})}
  const m=await member(raw,req);
  if(req.method==='GET'&&route==='state')return json(await Y.youthState(raw,m.id));
  if(req.method==='GET'&&route==='attempt'){
@@ -75,6 +78,7 @@ export async function handleYouthHttp(raw,req,path,authorizeAdmin){
   case 'cancel':result=await Y.youthCancel(raw,m.id,b.orderId);break;
   case 'message':result=await Y.youthMessage(raw,m.id,b);break;
   case 'redeem':await throttle(raw,req,'redeem',30);result=await Y.redeemBookletCode(raw,m.id,b.code);break;
+  case 'claim':result=await Y.claimBookletCode(raw,m.id,b.code);break;
   case 'next':result=await St.nextClick(raw,m.id,b.bookletId);break;
   case 'card':result=await D.linkCard(Y.youthDb(raw),m.id,b.network,b.number,m.id);break;
   default:throw new D.DomainError('הפעולה לא נמצאה',404);

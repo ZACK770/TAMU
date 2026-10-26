@@ -19,8 +19,10 @@ export async function listBooklets(db){
 export async function saveBooklet(db,b){
  const title=String(b.title||'').trim().slice(0,120);if(!title)fail('חסר שם לחוברת');const examId=b.examId||null,nextText=String(b.nextText||'').trim().slice(0,300)||null,nextUrl=String(b.nextUrl||'').trim().slice(0,300)||null;
  if(nextUrl&&!/^(https:\/\/|\/|#)/.test(nextUrl))fail('הקישור להמשך צריך להתחיל ב-https://');
- if(b.id){await q(db,'UPDATE b_booklets SET title=?,examId=?,nextText=?,nextUrl=? WHERE id=?',title,examId,nextText,nextUrl,b.id).run();return {id:b.id}}
- const id=crypto.randomUUID();await q(db,'INSERT INTO b_booklets(id,title,examId,nextText,nextUrl,createdAt) VALUES(?,?,?,?,?,?)',id,title,examId,nextText,nextUrl,D.now()).run();return {id};
+ const entryMode=b.entryMode==='exam'?'exam':'content',welcomeText=String(b.welcomeText||'').trim().slice(0,600)||null,videoUrl=String(b.videoUrl||'').trim().slice(0,300)||null;
+ if(videoUrl&&!/^https:\/\//.test(videoUrl))fail('קישור השיעור צריך להתחיל ב-https://');
+ if(b.id){await q(db,'UPDATE b_booklets SET title=?,examId=?,nextText=?,nextUrl=?,entryMode=?,welcomeText=?,videoUrl=? WHERE id=?',title,examId,nextText,nextUrl,entryMode,welcomeText,videoUrl,b.id).run();return {id:b.id}}
+ const id=crypto.randomUUID();await q(db,'INSERT INTO b_booklets(id,title,examId,nextText,nextUrl,entryMode,welcomeText,videoUrl,createdAt) VALUES(?,?,?,?,?,?,?,?,?)',id,title,examId,nextText,nextUrl,entryMode,welcomeText,videoUrl,D.now()).run();return {id};
 }
 export async function addFile(db,bookletId,kind,name,buf){
  if(!['part','back'].includes(kind))fail('סוג קובץ לא תקין');if(!await first(db,'SELECT id FROM b_booklets WHERE id=?',bookletId))fail('החוברת לא נמצאה',404);
@@ -69,4 +71,11 @@ export async function exportBooklet(db,id,mode,origin,from=1,to=1e9){
  else{parts.forEach((f,i)=>zip.file('parts/'+String(i+1).padStart(2,'0')+'-'+f.name.replace(/[\\/:*?"<>|]/g,'_'),Buffer.from(f.data,'base64')));
   if(parts.length)zip.file('booklet.pdf',await (await merged()).save());if(codes.length)zip.file('backs.pdf',await backs());}
  return {type:'application/zip',name:mode==='copies'?'copies.zip':'booklet.zip',data:await zip.generateAsync({type:'nodebuffer'})};
+}
+export async function readingPdf(db,input){
+ const code=String(input||'').toUpperCase().replace(/[^0-9A-Z]/g,''),c=code&&await first(db,'SELECT bookletId,voided FROM b_booklet_codes WHERE code=?',code);
+ if(!c||c.voided)fail('הקוד לא נמצא',404);
+ const parts=await rows(db,"SELECT data FROM b_booklet_files WHERE bookletId=? AND kind='part' ORDER BY ord",c.bookletId);if(!parts.length)fail('לחוברת הזו עוד אין קובץ לקריאה',404);
+ const doc=await PDFDocument.create();for(const f of parts){const src=await PDFDocument.load(Buffer.from(f.data,'base64'),{ignoreEncryption:true});(await doc.copyPages(src,src.getPageIndices())).forEach(p=>doc.addPage(p))}
+ return Buffer.from(await doc.save());
 }
